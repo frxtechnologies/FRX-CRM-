@@ -5,7 +5,8 @@ import { IS_DEMO } from '../lib/db'
 import { Button, inputCls, Label } from '../components/ui'
 
 export default function Login() {
-  const { signIn, demoSignIn, error: authError } = useAuth()
+  const { signIn, demoSignIn, error: authError, mfaPending, verifyMfa, signOut } = useAuth()
+  const [code, setCode] = useState('')
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
   const [err, setErr] = useState<string | null>(null)
@@ -31,6 +32,14 @@ export default function Login() {
                 <Button variant="secondary" onClick={() => demoSignIn('Raaef')} className="justify-start py-3">Raaef Usman <span className="ml-auto text-xs opacity-60">Co-founder &amp; Director</span></Button>
               </div>
             </>
+          ) : mfaPending ? (
+            <form className="space-y-4" onSubmit={async (e) => { e.preventDefault(); setBusy(true); setErr(await verifyMfa(code)); setBusy(false); setCode('') }}>
+              <div className="text-center"><div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0B1F3A] text-[#60A5FA]"><ShieldCheck size={22} /></div><h2 className="text-lg font-semibold text-[#0B1F3A]">Two-step verification</h2><p className="mt-1 text-sm text-slate-500">Open your authenticator app and enter the 6-digit code for FRX Business OS.</p></div>
+              <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} placeholder="123456" className={`${inputCls} !py-3 text-center !text-2xl tracking-[0.4em]`} />
+              {err && <p className="rounded-lg bg-red-50 p-2.5 text-xs text-red-700">{err}</p>}
+              <Button type="submit" loading={busy} disabled={code.length !== 6} className="w-full py-2.5">Verify</Button>
+              <button type="button" onClick={() => { setErr(null); signOut() }} className="w-full text-center text-xs text-slate-500 underline">Use a different account</button>
+            </form>
           ) : (
             <form className="space-y-4" onSubmit={async (e) => { e.preventDefault(); setBusy(true); setErr(await signIn(email, pw)); setBusy(false) }}>
               <div><Label>Email</Label><input className={inputCls} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></div>

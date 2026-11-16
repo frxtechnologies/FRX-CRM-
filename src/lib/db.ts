@@ -7,7 +7,7 @@ export const TABLES = [
   'profiles', 'leads', 'lead_activities', 'lead_notes', 'follow_ups', 'clients', 'projects', 'project_tasks',
   'business_tasks', 'business_notes', 'income_transactions', 'expense_transactions', 'investments', 'invoices',
   'invoice_items', 'invoice_payments', 'subscriptions', 'documents', 'notifications', 'activity_logs',
-  'exchange_rates', 'app_settings',
+  'exchange_rates', 'app_settings', 'vault_items', 'personal_expenses',
 ] as const
 export type TableName = (typeof TABLES)[number]
 
@@ -40,8 +40,12 @@ export async function loadTable(t: TableName) {
 }
 
 let realtimeStarted = false
+/** Tables added later by an optional SQL migration. If one is missing the app still loads; its page explains what to run. */
+const OPTIONAL = new Set<string>(['vault_items', 'personal_expenses'])
+export const missingTables = new Set<string>()
 export async function loadAll() {
-  await Promise.all(TABLES.map((t) => loadTable(t)))
+  missingTables.clear()
+  await Promise.all(TABLES.map((t) => loadTable(t).catch((e) => { if (OPTIONAL.has(t) && !IS_DEMO) { missingTables.add(t); return } throw e })))
   if (realtimeStarted) return
   realtimeStarted = true
   if (IS_DEMO) {
@@ -58,6 +62,8 @@ export async function loadAll() {
 }
 
 export function resetRealtime() { realtimeStarted = false }
+/** Drop all business data from memory (called on sign-out so the next person on this computer never sees it). */
+export function clearCache() { for (const t of TABLES) data[t] = []; emit() }
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36))
 const now = () => new Date().toISOString()
@@ -122,7 +128,11 @@ export function useVersion(): number {
 }
 
 // ---------- file storage ----------
+const BLOCKED_FILE = /\.(html?|xhtml|svg|js|mjs|exe|bat|cmd|com|ps1|msi|scr|vbs|jar|dll|sh|apk|app|lnk)$/i
+export const MAX_UPLOAD = 10 * 1024 * 1024
 export async function uploadFile(file: File): Promise<string> {
+  if (file.size > MAX_UPLOAD) throw new Error('That file is over 10 MB.')
+  if (BLOCKED_FILE.test(file.name)) throw new Error('This file type is blocked for safety (web pages, scripts and programs are not allowed).')
   if (IS_DEMO) {
     if (file.size > 2_500_000) throw new Error('Demo mode stores files in the browser; keep files under 2.5 MB (Supabase mode has no such limit).')
     return await new Promise((res, rej) => {
@@ -139,7 +149,7 @@ export async function uploadFile(file: File): Promise<string> {
 }
 export async function resolveFileUrl(ref?: string | null): Promise<string | null> {
   if (!ref) return null
-  if (!ref.startsWith('storage:')) return ref
+  if (!ref.startsWith('storage:')) return ref.startsWith('data:') ? ref : null // never follow arbitrary URLs stored in a record
   const { data: d, error } = await supabase!.storage.from('frx-files').createSignedUrl(ref.slice(8), 3600)
   if (error) return null
   return d.signedUrl

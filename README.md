@@ -21,13 +21,35 @@ npm run build    # typecheck + production build
 
 ### Going live (dedicated FRX Supabase project - already wired in `.env.local`)
 
-1. Supabase -> **SQL Editor** -> paste all of `supabase/schema.sql` -> Run.
-2. Supabase -> **Authentication -> Users -> Add user** (tick *Auto Confirm User*) for Feroze and Raaef. Authentication -> Providers/Settings: **disable new sign-ups**.
-3. SQL Editor -> paste `supabase/2-partners.sql`, replace the two email placeholders -> Run (should return 2 rows). Keep your real emails in `supabase/2-partners.local.sql` (git-ignored; this repo is public).
-3b. Existing installs only: run `supabase/3-invoice-custom-fields.sql` once (adds per-invoice client phone, "From" details and extra fields).
-4. Open the app and sign in. Never put the service-role key in the front end.
+Run these in the Supabase **SQL Editor**, in order:
+
+| # | File | What it does |
+|---|---|---|
+| 1 | `supabase/schema.sql` | Tables + row-level security |
+| 2 | `supabase/2-partners.sql` | Links the two partner logins (replace the email placeholders; keep real emails in `2-partners.local.sql`, which is git-ignored) |
+| 3 | `supabase/3-invoice-custom-fields.sql` | Per-invoice client phone, "from" details, extra fields |
+| 4 | `supabase/4-vault.sql` | The Vault (encrypted logins and recovery codes) |
+| 5 | `supabase/5-security-hardening.sql` | Anonymous lock-down, tamper-proof audit columns, upload limits, vault protection |
+| 6 | `supabase/6-personal-expenses.sql` | Personal spending for each partner |
+| 7 | `supabase/7-require-two-step.sql` | **Last, optional:** makes two-step login mandatory in the database. Turn two-step on for both partners first (Settings -> Security) |
+
+Create the two logins in Authentication -> Users (tick *Auto Confirm User*) before step 2, and turn off **Allow new users to sign up**.
 
 To go back to demo mode, empty the two `VITE_SUPABASE_*` values in `.env.local`.
+
+## Security
+
+What is enforced, and where:
+
+- **Database (row-level security):** only users listed in `profiles` can read or write anything; anonymous visitors get nothing (also revoked at the privilege level). `created_by` / `updated_by` / `created_at` are set by the database and cannot be forged or rewritten; the activity log is append-only and can only record actions as yourself; profiles cannot be added or removed from the app.
+- **Personal expenses:** both partners can read everything; only the owner can add, edit or delete their own entries (policy-enforced).
+- **Vault:** secrets are encrypted in the browser with AES-256-GCM, key derived from a shared passphrase with PBKDF2-SHA256 at 600,000 rounds. The database only stores ciphertext; the passphrase is never stored or sent. The lock parameters cannot be changed from the app. It auto-locks after 10 minutes idle and on sign-out.
+- **Two-step login:** TOTP authenticator app (Settings -> Security). With `7-require-two-step.sql` the database itself refuses sessions that skipped the code.
+- **App:** automatic sign-out after 30 minutes idle; business data is wiped from memory on sign-out; uploads limited to 10 MB with web pages, scripts and executables blocked (also enforced on the storage bucket); links only open for http(s) addresses; exported CSV/Excel cells that start with `= + - @` are neutralised to stop spreadsheet formula injection.
+- **Hosting:** `public/_headers` sets a strict Content-Security-Policy, HSTS, no framing, no referrer, locked-down browser permissions and `noindex` (works on Netlify; tested to break nothing).
+- **Code hygiene:** `npm audit` reports 0 known vulnerabilities; no secrets in the repo (the only key in the browser is Supabase's public anon key, which row-level security constrains).
+
+Supabase dashboard settings to check yourself (cannot be set from code): disable public sign-ups; require a strong minimum password length; enable leaked-password protection if your plan has it; keep the **service-role** and **secret** keys out of this project and out of chat.
 
 ## How the money works
 

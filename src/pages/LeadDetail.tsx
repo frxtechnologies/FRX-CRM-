@@ -5,7 +5,7 @@ import { resolveFileUrl, uploadFile, useTable } from '../lib/db'
 import { create, remove, useList, partnerName, getCurrentUserId } from '../lib/services'
 import { completeFollowUp, logLeadActivity, rescheduleFollowUp, scheduleFollowUp, setLeadStatus } from '../lib/leadOps'
 import { ACTIVITY_TYPES } from '../lib/constants'
-import { cn, fmtCompact, fmtDate, fmtDateTime, nowLocalInput, num, today } from '../lib/util'
+import { cn, fmtCompact, fmtDate, fmtDateTime, nowLocalInput, num, safeUrl, today } from '../lib/util'
 import { Badge, Button, Card, CardHeader, Empty, Field, inputCls, PartnerChip, PartnerSelect, Select, statusTone, Tabs, useToast } from '../components/ui'
 import { LeadForm } from './Leads'
 import { convertLead } from '../lib/services'
@@ -84,7 +84,7 @@ export default function LeadDetail() {
               {lead.phone && <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs hover:bg-slate-200"><Phone size={12} />{lead.phone}</a>}
               {(lead.whatsapp || lead.phone) && <a target="_blank" rel="noreferrer" href={`https://wa.me/${(lead.whatsapp || lead.phone).replace(/\D/g, '')}`} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-100"><MessageCircle size={12} />WhatsApp</a>}
               {lead.email && <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs hover:bg-slate-200"><Mail size={12} />{lead.email}</a>}
-              {lead.website && <a target="_blank" rel="noreferrer" href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs hover:bg-slate-200"><Globe size={12} />Website</a>}
+              {safeUrl(lead.website) && <a target="_blank" rel="noopener noreferrer" href={safeUrl(lead.website)!} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs hover:bg-slate-200"><Globe size={12} />Website</a>}
             </div>
             <p className="px-5 pb-3 text-[11px] text-slate-400">These links only open your own apps — FRX OS never sends messages or places calls for you. Log what you did in the timeline.</p>
             {(lead.tags?.length > 0 || lead.notes) && <div className="border-t border-slate-100 p-4 text-sm">{lead.tags?.length > 0 && <div className="mb-2 flex flex-wrap gap-1">{lead.tags.map((x: string) => <Badge key={x} tone="blue">{x}</Badge>)}</div>}{lead.notes && <p className="whitespace-pre-wrap text-slate-600">{lead.notes}</p>}</div>}

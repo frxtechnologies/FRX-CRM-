@@ -31,6 +31,7 @@ export const TASK_STATUSES = ['To Do', 'In Progress', 'Waiting', 'Completed', 'C
 
 export const EXPENSE_CATEGORIES = ['Software Subscriptions', 'Hosting and Domains', 'Marketing', 'Advertising', 'Development Tools', 'Client Project Expenses', 'Internet and Communication', 'Equipment', 'Business Registration', 'Education and Training', 'Other']
 export const PAYMENT_METHODS = ['Bank Transfer', 'Cash', 'Card', 'PayPal', 'Wise', 'Payoneer', 'JazzCash / Easypaisa', 'Crypto (received as fiat)', 'Other']
+export const PERSONAL_CATEGORIES = ['Food & groceries', 'Housing & rent', 'Bills & utilities', 'Transport & fuel', 'Health', 'Family', 'Shopping', 'Entertainment', 'Education', 'Travel', 'Gifts & charity', 'Other']
 export const INVESTORS = ['Feroze', 'Raaef', 'Other Sources']
 
 export const SUB_CATEGORIES = ['AI Tools', 'Hosting', 'Domains', 'Development Tools', 'Communication', 'Marketing', 'Productivity', 'Design Software', 'Other']

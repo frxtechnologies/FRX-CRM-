@@ -5,12 +5,12 @@ import autoTable from 'jspdf-autotable'
 import { useTable, snapshot, byId } from '../lib/db'
 import { financeSummary, monthlyCostBase, partnerName, subEffectiveStatus, toBase, usePrefs, useCompany } from '../lib/services'
 import { WON } from '../lib/constants'
-import { downloadBlob, fmtMoney, num, toCSV, today } from '../lib/util'
+import { csvSafe, downloadBlob, fmtMoney, num, toCSV, today } from '../lib/util'
 import { loadLogo } from '../lib/pdf'
 import { Button, Card, CardHeader, Field, inputCls, PageHeader, Select } from '../components/ui'
 
 type Report = { title: string; cols: string[]; rows: (string | number)[][] }
-const TYPES = ['Leads', 'Clients', 'Sales', 'Revenue', 'Expenses', 'Profit and Loss', 'Investments', 'Subscriptions', 'Projects', 'Tasks', 'Partner Performance'] as const
+const TYPES = ['Leads', 'Clients', 'Sales', 'Revenue', 'Expenses', 'Profit and Loss', 'Investments', 'Subscriptions', 'Projects', 'Tasks', 'Personal Expenses', 'Partner Performance'] as const
 
 function build(type: string, from: string, to: string, base: string): Report {
   const inR = (d?: string) => !!d && (!from || d.slice(0, 10) >= from) && (!to || d.slice(0, 10) <= to)
@@ -35,6 +35,8 @@ function build(type: string, from: string, to: string, base: string): Report {
       rows: S('projects').filter((p) => !from && !to ? true : inR(p.start_date || p.created_at)).map((p) => [p.name, byId('clients', p.client_id)?.company || '', p.status, p.priority, p.start_date || '', p.due_date || '', p.completed_date || '', num(p.amount), p.currency, partnerName(p.assigned_to)]) }
     case 'Tasks': return { title: 'Tasks', cols: ['Task', 'Category', 'Status', 'Priority', 'Due', 'Assigned', 'Created by'],
       rows: S('business_tasks').filter((t) => inR(t.created_at)).map((t) => [t.title, t.category, t.status, t.priority, t.due_date || '', partnerName(t.assigned_to), partnerName(t.created_by)]) }
+    case 'Personal Expenses': return { title: 'Personal expenses', cols: ['Date', 'Whose', 'What', 'Category', 'Amount', 'Currency', `In ${base}`, 'Paid with', 'Notes'],
+      rows: S('personal_expenses').filter((e) => inR(e.date)).sort((a, b) => a.date.localeCompare(b.date)).map((e) => [e.date, partnerName(e.owner_id), e.name, e.category, num(e.amount), e.currency, toBase(num(e.amount), e.rate_to_base), e.method || '', e.notes || '']) }
     default: return { title: 'Partner performance', cols: ['Partner', 'Leads added', 'Leads owned', 'Activities logged', 'Follow-ups completed', 'Tasks completed', 'Deals won'],
       rows: S('profiles').map((p) => [p.short_name, S('leads').filter((l) => l.created_by === p.id && inR(l.created_at)).length, S('leads').filter((l) => l.assigned_to === p.id).length, S('lead_activities').filter((a) => a.user_id === p.id && inR(a.occurred_at)).length, S('follow_ups').filter((f) => f.completed_by === p.id && inR(f.completed_at || '')).length, S('business_tasks').filter((t) => t.assigned_to === p.id && t.status === 'Completed' && inR(t.completed_at || '')).length, S('leads').filter((l) => l.assigned_to === p.id && l.status === WON).length]) }
   }
@@ -47,13 +49,13 @@ export default function Reports() {
   useTable('leads'); useTable('clients'); useTable('income_transactions'); useTable('expense_transactions'); useTable('invoices'); useTable('subscriptions'); useTable('projects'); useTable('business_tasks'); useTable('investments'); useTable('follow_ups'); useTable('lead_activities')
   const [type, setType] = useState<string>('Leads')
   const [from, setFrom] = useState(''), [to, setTo] = useState('')
-  const rep = useMemo(() => build(type, from, to, base), [type, from, to, base, snapshot('leads'), snapshot('income_transactions'), snapshot('expense_transactions'), snapshot('invoices'), snapshot('subscriptions'), snapshot('projects'), snapshot('business_tasks'), snapshot('clients'), snapshot('investments')])
+  const rep = useMemo(() => build(type, from, to, base), [type, from, to, base, snapshot('leads'), snapshot('income_transactions'), snapshot('expense_transactions'), snapshot('invoices'), snapshot('subscriptions'), snapshot('projects'), snapshot('business_tasks'), snapshot('clients'), snapshot('investments'), snapshot('personal_expenses')])
   const stamp = `${rep.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${today()}`
   const objs = rep.rows.map((r) => Object.fromEntries(r.map((v, i) => [String(i), v])))
   const colDefs = rep.cols.map((c, i) => ({ key: String(i), label: c }))
 
   const excel = () => {
-    const esc = (s: any) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    const esc = (s: any) => (typeof s === 'string' ? csvSafe(s) : String(s ?? '')).replace(/&/g, '&amp;').replace(/</g, '&lt;')
     const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1"><tr>${rep.cols.map((c) => `<th style="background:#0B1F3A;color:#fff">${esc(c)}</th>`).join('')}</tr>${rep.rows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</table></body></html>`
     downloadBlob(`${stamp}.xls`, html, 'application/vnd.ms-excel')
   }

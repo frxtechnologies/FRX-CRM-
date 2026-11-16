@@ -48,9 +48,14 @@ export function downloadBlob(name: string, content: BlobPart, type: string) {
 }
 
 // ---------- CSV ----------
+// Spreadsheet formula injection: a cell that starts with = + - @ can run as a formula when opened in Excel/Sheets
+// (e.g. a lead named "=HYPERLINK(...)" imported from a CSV). Prefix such TEXT with an apostrophe so it stays text.
+// Real numbers, negative numbers and normal phone numbers (+92 300 ...) are left alone.
+export const csvSafe = (s: string) => (/^[=+\-@\t\r]/.test(s) && !/^[+-]?\d+(\.\d+)?$/.test(s) && !/^\+[\d\s().-]{5,}$/.test(s) ? `'${s}` : s)
+
 const esc = (v: any) => {
   if (v == null) return ''
-  const s = Array.isArray(v) ? v.join('; ') : String(v)
+  const s = typeof v === 'number' ? String(v) : csvSafe(Array.isArray(v) ? v.join('; ') : String(v))
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 export function toCSV(rows: Record<string, any>[], cols: { key: string; label: string }[]) {
@@ -80,4 +85,14 @@ export function parseCSV(text: string): Record<string, string>[] {
   if (!rows.length) return []
   const head = rows[0].map((h) => h.trim())
   return rows.slice(1).map((r) => Object.fromEntries(head.map((h, i) => [h, (r[i] ?? '').trim()])))
+}
+
+/** Only ever link out to http(s) addresses. Anything else (javascript:, data:, file:) is refused. */
+export const safeUrl = (u?: string | null): string | null => {
+  if (!u) return null
+  const t = u.trim()
+  try {
+    const x = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : `https://${t}`)
+    return x.protocol === 'http:' || x.protocol === 'https:' ? x.href : null
+  } catch { return null }
 }

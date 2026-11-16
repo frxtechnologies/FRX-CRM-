@@ -90,9 +90,9 @@ export function FormModal({ open, onClose, title, fields, initial, onSubmit, sub
   )
 }
 
-export function DataTable({ rows, columns, onRowClick, onEdit, onDelete, empty, initialSort, exportName, extraToolbar, searchKeys, rowClass }: {
+export function DataTable({ rows, columns, onRowClick, onEdit, onDelete, empty, initialSort, exportName, extraToolbar, searchKeys, rowClass, canEdit }: {
   rows: Row[]; columns: Column[]; onRowClick?: (r: Row) => void; onEdit?: (r: Row) => void; onDelete?: (r: Row) => void
-  empty?: ReactNode; initialSort?: { key: string; dir: 1 | -1 }; exportName?: string; extraToolbar?: ReactNode; searchKeys?: string[]; rowClass?: (r: Row) => string
+  empty?: ReactNode; initialSort?: { key: string; dir: 1 | -1 }; exportName?: string; extraToolbar?: ReactNode; searchKeys?: string[]; rowClass?: (r: Row) => string; canEdit?: (r: Row) => boolean
 }) {
   const [q, setQ] = useState('')
   const [sort, setSort] = useState(initialSort || { key: '', dir: 1 as 1 | -1 })
@@ -132,8 +132,8 @@ export function DataTable({ rows, columns, onRowClick, onEdit, onDelete, empty, 
                   {columns.map((c) => <td key={c.key} className={cn('px-4 py-2.5 text-slate-700', c.align === 'right' && 'text-right tabular-nums')}>{c.render ? c.render(r) : (Array.isArray(r[c.key]) ? r[c.key].join(', ') : r[c.key]) ?? '—'}</td>)}
                   {(onEdit || onDelete) && (
                     <td className="px-2 text-right" onClick={(e) => e.stopPropagation()}>
-                      {onEdit && <button className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-[#2563EB]" onClick={() => onEdit(r)}><Pencil size={14} /></button>}
-                      {onDelete && <button className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(r)}><Trash2 size={14} /></button>}
+                      {onEdit && (!canEdit || canEdit(r)) && <button className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-[#2563EB]" onClick={() => onEdit(r)}><Pencil size={14} /></button>}
+                      {onDelete && (!canEdit || canEdit(r)) && <button className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(r)}><Trash2 size={14} /></button>}
                     </td>
                   )}
                 </tr>

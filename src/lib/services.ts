@@ -24,6 +24,8 @@ const LABEL: Partial<Record<TableName, [string, (r: Row) => string]>> = {
   invoices: ['invoice', (r) => r.number], subscriptions: ['subscription', (r) => r.name], documents: ['document', (r) => r.name],
   follow_ups: ['follow-up', (r) => byId('leads', r.lead_id)?.business_name || 'lead'],
   lead_activities: ['activity', (r) => `${r.type} — ${byId('leads', r.lead_id)?.business_name || 'lead'}`],
+  vault_items: ['vault login', (r) => r.title],
+  personal_expenses: ['personal expense', (r) => r.name],
   invoice_payments: ['payment', (r) => `${fmtMoney(num(r.amount), byId('invoices', r.invoice_id)?.currency)} on ${byId('invoices', r.invoice_id)?.number}`],
 }
 

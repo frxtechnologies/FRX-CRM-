@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
+import { IS_DEMO } from './lib/db'
 import { runAutomations } from './lib/services'
 import { ToastProvider } from './components/ui'
 import Layout from './components/Layout'
@@ -26,9 +27,21 @@ import Documents from './pages/Documents'
 import ActivityLog from './pages/ActivityLog'
 import Reports from './pages/Reports'
 import SettingsPage from './pages/Settings'
+import Vault from './pages/Vault'
+import Personal from './pages/Personal'
 
 function Gate() {
-  const { user, loading } = useAuth()
+  const { user, loading, signOut } = useAuth()
+  // Shared or unattended computer: sign out automatically after 30 minutes with no activity (live mode).
+  useEffect(() => {
+    if (!user || IS_DEMO) return
+    const MAX = 30 * 60 * 1000
+    let t = setTimeout(() => { signOut() }, MAX)
+    const reset = () => { clearTimeout(t); t = setTimeout(() => { signOut() }, MAX) }
+    const ev = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart']
+    ev.forEach((e) => window.addEventListener(e, reset, { passive: true }))
+    return () => { clearTimeout(t); ev.forEach((e) => window.removeEventListener(e, reset)) }
+  }, [user?.id])
   useEffect(() => {
     if (!user) return
     runAutomations().catch(() => {})
@@ -61,6 +74,8 @@ function Gate() {
         <Route path="invoices/new" element={<InvoiceEditor />} />
         <Route path="invoices/:id/edit" element={<InvoiceEditor />} />
         <Route path="invoices/:id" element={<InvoiceDetail />} />
+        <Route path="vault" element={<Vault />} />
+        <Route path="personal" element={<Personal />} />
         <Route path="subscriptions" element={<Subscriptions />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="documents" element={<Documents />} />

@@ -8,12 +8,13 @@ import { fmtCompact, fmtDate, fmtDateTime, num } from '../lib/util'
 import { Badge, Button, Card, CardHeader, Empty, PartnerChip, Select, statusTone, Tabs, useToast } from '../components/ui'
 import { DataTable, FormModal, initialValues } from '../components/Entity'
 import { clientFields } from './Clients'
+import VaultPanel from '../components/VaultPanel'
 
 export default function ClientDetail() {
   const { id } = useParams()
   const nav = useNavigate()
   const toast = useToast()
-  const clients = useTable('clients'), projects = useTable('projects'), invoices = useTable('invoices'), payments = useTable('invoice_payments'), docs = useTable('documents'), acts = useTable('lead_activities'), leads = useTable('leads')
+  const vault = useTable('vault_items'), clients = useTable('clients'), projects = useTable('projects'), invoices = useTable('invoices'), payments = useTable('invoice_payments'), docs = useTable('documents'), acts = useTable('lead_activities'), leads = useTable('leads')
   const client = clients.find((c) => c.id === id)
   const [tab, setTab] = useState('overview')
   const [editing, setEditing] = useState(false)
@@ -40,7 +41,7 @@ export default function ClientDetail() {
           <Button onClick={() => nav(`/projects?new=1&client=${id}`)}>New project</Button>
         </div>
       </div>
-      <Tabs value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Overview' }, { id: 'projects', label: 'Projects', count: myProjects.length }, { id: 'invoices', label: 'Invoices', count: myInvoices.length }, { id: 'payments', label: 'Payment history', count: myPayments.length }, { id: 'comms', label: 'Communication', count: history.length }, { id: 'docs', label: 'Documents', count: myDocs.length }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Overview' }, { id: 'projects', label: 'Projects', count: myProjects.length }, { id: 'invoices', label: 'Invoices', count: myInvoices.length }, { id: 'payments', label: 'Payment history', count: myPayments.length }, { id: 'comms', label: 'Communication', count: history.length }, { id: 'logins', label: 'Logins', count: vault.filter((v) => v.client_id === id).length }, { id: 'docs', label: 'Documents', count: myDocs.length }]} />
       <div className="mt-4">
         {tab === 'overview' && (
           <div className="grid gap-5 lg:grid-cols-3">
@@ -76,6 +77,7 @@ export default function ClientDetail() {
             )}
           </Card>
         )}
+        {tab === 'logins' && <VaultPanel clientId={id} />}
         {tab === 'docs' && (
           <Card className="p-5">
             <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 p-5 text-sm text-slate-500 hover:border-[#2563EB]"><Upload size={16} /> Upload contract, requirements or other document

@@ -28,6 +28,66 @@ function ListEditor({ id, label, defaults, note }: { id: string; label: string; 
   )
 }
 
+function TwoStep() {
+  const toast = useToast()
+  const [factor, setFactor] = useState<{ id: string; status: string } | null>(null)
+  const [enroll, setEnroll] = useState<{ id: string; qr: string; secret: string } | null>(null)
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const load = async () => {
+    const { data } = await supabase!.auth.mfa.listFactors()
+    setFactor(data?.totp?.find((f) => f.status === 'verified') || null)
+  }
+  useEffect(() => { load() }, [])
+  async function start() {
+    setBusy(true)
+    // clear any half-finished enrolment from an earlier attempt first
+    const { data: l } = await supabase!.auth.mfa.listFactors()
+    for (const f of (l?.all || []).filter((x) => x.status !== 'verified')) await supabase!.auth.mfa.unenroll({ factorId: f.id })
+    const { data, error } = await supabase!.auth.mfa.enroll({ factorType: 'totp', friendlyName: `FRX OS ${new Date().toISOString().slice(0, 10)}` })
+    setBusy(false)
+    if (error || !data) return toast(error?.message || 'Could not start setup. Is two-step (TOTP) enabled in your Supabase project?', 'err')
+    setEnroll({ id: data.id, qr: data.totp.qr_code, secret: data.totp.secret })
+  }
+  async function confirm() {
+    if (!enroll) return
+    setBusy(true)
+    const { data: ch, error: e1 } = await supabase!.auth.mfa.challenge({ factorId: enroll.id })
+    if (e1) { setBusy(false); return toast(e1.message, 'err') }
+    const { error: e2 } = await supabase!.auth.mfa.verify({ factorId: enroll.id, challengeId: ch.id, code: code.trim() })
+    setBusy(false)
+    if (e2) return toast('That code is not right. Check the app and try the next code.', 'err')
+    setEnroll(null); setCode(''); await load(); toast('Two-step verification is ON')
+  }
+  async function disable() {
+    if (!factor || !window.confirm('Turn off two-step verification for your account? Your account becomes easier to break into.')) return
+    const { error } = await supabase!.auth.mfa.unenroll({ factorId: factor.id })
+    if (error) return toast(error.message, 'err')
+    setFactor(null); toast('Two-step verification is OFF')
+  }
+  return (
+    <div className="rounded-xl border border-slate-200 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div><div className="font-semibold text-[#0B1F3A]">Two-step verification</div><div className="text-xs text-slate-500">A 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy) on top of your password.</div></div>
+        {factor ? <Badge tone="green">ON</Badge> : <Badge tone="red">OFF</Badge>}
+      </div>
+      {!factor && !enroll && <Button className="mt-3" loading={busy} onClick={start}>Turn on two-step verification</Button>}
+      {factor && <Button className="mt-3" variant="danger" onClick={disable}>Turn off</Button>}
+      {enroll && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-[auto_1fr]">
+          <img src={enroll.qr} alt="QR code to scan with your authenticator app" className="h-44 w-44 rounded-lg border border-slate-200 bg-white p-2" />
+          <div className="space-y-3 text-sm">
+            <p><b>1.</b> Scan the QR code with your authenticator app.<br /><span className="text-xs text-slate-500">Can't scan? Type this key in instead:</span> <code className="break-all rounded bg-slate-100 px-1.5 py-0.5 text-xs">{enroll.secret}</code></p>
+            <p><b>2.</b> Enter the 6-digit code it shows:</p>
+            <div className="flex gap-2"><input inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} placeholder="123456" className={`${inputCls} !w-40 text-center tracking-[0.3em]`} /><Button loading={busy} disabled={code.length !== 6} onClick={confirm}>Confirm</Button></div>
+            <p className="text-xs text-amber-800">Save the key somewhere safe (the Vault is a good place). If you lose your phone and the key, an admin has to reset your account.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function SettingsPage() {
   const toast = useToast()
   const { user } = useAuth()
@@ -103,6 +163,7 @@ export default function SettingsPage() {
 
       {tab === 'security' && <Card><CardHeader title="Security" /><div className="space-y-4 p-5 text-sm text-slate-600">
         <ul className="list-disc space-y-1.5 pl-5"><li>Authentication: individual accounts via Supabase Auth (passwords are hashed by Supabase — never stored by this app).</li><li>Database: Row Level Security allows only users listed in <code>profiles</code> to read or write any table; the activity log is append-only.</li><li>No service-role key is used in this front-end; only the public anon key, which RLS constrains.</li><li>Disable public sign-ups in Supabase Authentication settings so nobody else can register.</li></ul>
+        {!IS_DEMO && <TwoStep />}
         {IS_DEMO ? <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">Demo mode has no passwords or database security — it is for evaluation only.</p> : (
           <div className="max-w-sm"><Field label="Change my password"><input type="password" className={inputCls} value={pw} onChange={(e) => setPw(e.target.value)} placeholder="New password (min 8 chars)" /></Field>
             <Button className="mt-2" disabled={pw.length < 8} onClick={async () => { const { error } = await supabase!.auth.updateUser({ password: pw }); if (error) toast(error.message, 'err'); else { toast('Password updated'); setPw('') } }}>Update password</Button></div>)}</div></Card>}

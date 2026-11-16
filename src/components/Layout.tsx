@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, UserCheck, FolderKanban, CheckSquare, Wallet, FileText, Repeat, BarChart3, Files, History, Settings,
-  ChevronDown, ChevronsLeft, ChevronsRight, Bell, Search, LogOut, Menu, CalendarClock, FileBarChart, MoreHorizontal,
+  ChevronDown, ChevronsLeft, ChevronsRight, Bell, Search, LogOut, Menu, CalendarClock, FileBarChart, MoreHorizontal, KeyRound, PiggyBank,
 } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { useTable } from '../lib/db'
@@ -21,6 +21,8 @@ const NAV: Item[] = [
   { to: '/tasks', label: 'Tasks', icon: CheckSquare },
   { to: '/finance/pnl', label: 'Money', icon: Wallet, match: (p) => p.startsWith('/finance') },
   { to: '/invoices', label: 'Invoices', icon: FileText },
+  { to: '/vault', label: 'Vault', icon: KeyRound },
+  { to: '/personal', label: 'Personal', icon: PiggyBank },
   { to: '/more', label: 'More', icon: MoreHorizontal, children: [
     { to: '/overview', label: 'Business overview', icon: LayoutDashboard },
     { to: '/subscriptions', label: 'Subscriptions', icon: Repeat },
@@ -36,7 +38,7 @@ const CRUMBS: Record<string, string> = {
   leads: 'Leads', local: 'Local Leads', international: 'International Leads', 'follow-ups': 'Follow-up Center', clients: 'Clients', projects: 'Projects',
   tasks: 'Tasks', finance: 'Finance', income: 'Income', expenses: 'Expenses', investments: 'Investments', pnl: 'Profit & Loss', invoices: 'Invoices',
   subscriptions: 'Subscriptions', analytics: 'Sales Analytics', documents: 'Documents', activity: 'Activity Log', settings: 'Settings', reports: 'Reports',
-  notifications: 'Notifications', new: 'New', overview: 'Business overview', more: 'More',
+  notifications: 'Notifications', new: 'New', overview: 'Business overview', vault: 'Vault', personal: 'Personal spending', more: 'More',
 }
 
 function GlobalSearch() {
