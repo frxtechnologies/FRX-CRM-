@@ -16,3 +16,35 @@ body { background: #F5F7FB; color: #0f172a; font-family: var(--font-sans); -webk
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
 @media print { aside, header, .no-print { display: none !important; } main { padding: 0 !important; } }
+
+/* ---------- phone & touch ---------- */
+@keyframes sheet { from { transform: translateY(100%); } to { transform: none; } }
+.animate-sheet { animation: sheet .24s cubic-bezier(.2, .8, .2, 1); }
+/* bigger screens use the original small fade, not the slide-up sheet */
+@media (min-width: 640px) { .animate-sheet { animation: pop .16s ease-out; } }
+html { -webkit-text-size-adjust: 100%; }
+* { -webkit-tap-highlight-color: transparent; }
+button, a, select, input, label, textarea { touch-action: manipulation; }
+@media (max-width: 1023px) {
+  html { font-size: 16px; }
+  /* 16px+ stops iPhones from zooming the page when you tap a field */
+  input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea { font-size: 16px !important; }
+  /* comfortable thumb targets */
+  main button, main select, main input:not([type=checkbox]):not([type=radio]):not([type=file]), header button, .fixed button { min-height: 44px; }
+  button:has(> svg:only-child) { min-width: 44px; }
+  input[type=checkbox], input[type=radio] { width: 22px; height: 22px; }
+  /* small text links ("All tasks", "Details") get a full-size tap area */
+  main a[class*="text-[#2563EB]"]:not([class*="rounded"]) { display: inline-flex; align-items: center; min-height: 44px; }
+  main a.block.text-center { display: flex; align-items: center; justify-content: center; min-height: 44px; }
+  /* never let a long word or number push the page sideways */
+  main { overflow-wrap: anywhere; }
+}
+
+/* On phones, a grid with no explicit column count must be ONE column that can shrink. Without this, the grid grows to fit its
+   widest child (an input, a long word) and the whole page becomes wider than the screen. Lives in the base layer so any
+   grid-cols-* / lg:grid-cols-* utility still wins. */
+@layer base {
+  @media (max-width: 1023px) {
+    :where(main .grid) { grid-template-columns: minmax(0, 1fr); }
+  }
+}

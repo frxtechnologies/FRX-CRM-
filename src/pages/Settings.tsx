@@ -8,6 +8,7 @@ import { downloadBlob, num, today } from '../lib/util'
 import { hasSampleData, loadSampleData, removeSampleData } from '../lib/sample'
 import { Badge, Button, Card, CardHeader, Field, inputCls, PageHeader, Select, Tabs, useToast, Avatar } from '../components/ui'
 import { useAuth } from '../lib/auth'
+import { disablePush, enablePush, isIOS, myDeviceCount, pushState, sendTestAlert, type PushState } from '../lib/push'
 
 function ListEditor({ id, label, defaults, note }: { id: string; label: string; defaults: string[]; note?: string }) {
   const stored = useList(id as any)
@@ -88,6 +89,40 @@ function TwoStep() {
   )
 }
 
+function PhoneAlerts() {
+  const toast = useToast()
+  const { user } = useAuth()
+  const [state, setState] = useState<PushState | 'loading'>('loading')
+  const [devices, setDevices] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const refresh = async () => { setState(await pushState()); myDeviceCount().then(setDevices).catch(() => setDevices(0)) }
+  useEffect(() => { refresh() }, [])
+  const run = async (fn: () => Promise<void>, ok?: string) => { setBusy(true); try { await fn(); if (ok) toast(ok) } catch (e: any) { toast(e.message || 'Something went wrong', 'err') } finally { setBusy(false); refresh() } }
+  const msg: Record<string, string> = {
+    unsupported: 'This browser cannot receive phone alerts. Use Chrome or Edge on Android or desktop, or Safari on iPhone with the site added to your home screen.',
+    'needs-install': 'On iPhone, alerts only work from the home-screen icon. Tap Share → Add to Home Screen, then open FRX OS from that icon (not from Safari) and come back here.',
+    'not-configured': 'Phone alerts are not switched on for this site yet (the alert key is missing from the site settings).',
+    blocked: 'Notifications are blocked for this site. Allow them in your phone settings (iPhone: Settings → Notifications → FRX OS; Android: long-press the icon → Site settings), then reload.',
+  }
+  return (
+    <Card className="mb-5">
+      <CardHeader title="Phone alerts" sub="Get a real notification on your phone for new leads, tasks assigned to you, payments, overdue items and a morning summary." action={state === 'on' ? <Badge tone="green">ON for this device</Badge> : <Badge tone="slate">OFF</Badge>} />
+      <div className="space-y-3 p-5 text-sm">
+        {state === 'loading' && <p className="text-slate-500">Checking this device…</p>}
+        {msg[state] && <p className="rounded-lg bg-amber-50 p-3 text-amber-900">{msg[state]}</p>}
+        {state === 'off' && <div><Button loading={busy} onClick={() => run(() => enablePush(user!.id), 'Alerts are ON for this device')}>Turn on alerts on this device</Button><p className="mt-2 text-xs text-slate-500">Your phone will ask for permission. Do this once on each phone or computer you want alerts on.</p></div>}
+        {state === 'on' && (
+          <div className="flex flex-wrap gap-2">
+            <Button loading={busy} onClick={() => run(async () => { const r = await sendTestAlert(); if (!r.sent) throw new Error('The test ran but nothing was delivered. Check the function secrets, or turn alerts off and on again on this device.'); toast(`Test sent to ${r.sent} device${r.sent === 1 ? '' : 's'} — check your phone`) })}>Send me a test alert</Button>
+            <Button variant="secondary" loading={busy} onClick={() => run(disablePush, 'Alerts turned off for this device')}>Turn off on this device</Button>
+          </div>
+        )}
+        <p className="text-xs text-slate-500">Devices receiving your alerts: <b>{devices}</b>. Alerts show only short headlines. They never contain passwords, vault contents or personal spending.{isIOS() ? '' : ''}</p>
+      </div>
+    </Card>
+  )
+}
+
 export default function SettingsPage() {
   const toast = useToast()
   const { user } = useAuth()
@@ -153,8 +188,8 @@ export default function SettingsPage() {
       {tab === 'categories' && <div className="space-y-5"><ListEditor id="expense_categories" label="Expense categories" defaults={EXPENSE_CATEGORIES} /><ListEditor id="subscription_categories" label="Subscription categories" defaults={SUB_CATEGORIES} />
         <Card className="p-5 text-xs text-slate-500">Lead industries per market: Local — {INDUSTRIES_LOCAL.join(', ')}. International — {INDUSTRIES_INTL.join(', ')}.</Card></div>}
 
-      {tab === 'notifications' && <Card><CardHeader title="Notification preferences" sub="In-app notifications for both partners. FRX OS never sends email or WhatsApp on its own." /><div className="space-y-2 p-5">
-        {([['follow-up', 'Follow-ups due or overdue'], ['task', 'Tasks assigned & overdue'], ['invoice', 'Invoice payments & overdue invoices'], ['subscription', 'Subscription renewals & expiry (30 / 7 / 3 days, on the day)'], ['client', 'New clients'], ['announcement', 'Announcements']] as [string, string][]).map(([k, l]) => <label key={k} className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-[#2563EB]" checked={(notifPrefs as any)[k] !== false} onChange={async (e) => { await saveSetting('notif_prefs', { ...notifPrefs, [k]: e.target.checked }); toast('Saved') }} />{l}</label>)}</div></Card>}
+      {tab === 'notifications' && <div>{!IS_DEMO && <PhoneAlerts />}<Card><CardHeader title="Notification preferences" sub="In-app notifications for both partners. FRX OS never sends email or WhatsApp on its own." /><div className="space-y-2 p-5">
+        {([['follow-up', 'Follow-ups due or overdue'], ['task', 'Tasks assigned & overdue'], ['invoice', 'Invoice payments & overdue invoices'], ['subscription', 'Subscription renewals & expiry (30 / 7 / 3 days, on the day)'], ['lead', 'New leads added by your partner'], ['client', 'New clients'], ['announcement', 'Announcements']] as [string, string][]).map(([k, l]) => <label key={k} className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-[#2563EB]" checked={(notifPrefs as any)[k] !== false} onChange={async (e) => { await saveSetting('notif_prefs', { ...notifPrefs, [k]: e.target.checked }); toast('Saved') }} />{l}</label>)}</div></Card></div>}
 
       {tab === 'data' && <div className="grid gap-5 lg:grid-cols-2"><Card><CardHeader title="Data export" sub="Full backup of every table as JSON" /><div className="p-5"><Button onClick={() => { const dump: Record<string, any> = {}; TABLES.forEach((t) => (dump[t] = snapshot(t))); downloadBlob(`frx-business-os-backup-${today()}.json`, JSON.stringify(dump, null, 2), 'application/json'); toast('Backup downloaded') }}>Download JSON backup</Button><p className="mt-2 text-xs text-slate-500">Per-module CSV / PDF / Excel exports are under Reports.</p></div></Card>
         {IS_DEMO && <Card><CardHeader title="Sample data" sub="Clearly labelled “[Sample]” records so you can try the system" /><div className="p-5"><div className="flex gap-2"><Button loading={busy} disabled={sample} onClick={async () => { setBusy(true); try { await loadSampleData(); setSample(true); toast('Sample data loaded') } catch (e: any) { toast(e.message, 'err') } finally { setBusy(false) } }}>Load sample data</Button>

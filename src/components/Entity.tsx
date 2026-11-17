@@ -116,7 +116,38 @@ export function DataTable({ rows, columns, onRowClick, onEdit, onDelete, empty, 
         {exportName && <Button variant="secondary" size="sm" onClick={exportCsv}><Download size={13} /> CSV</Button>}
       </div>
       {filtered.length === 0 ? (empty || <Empty title="Nothing here yet" hint={q ? 'No records match your search.' : undefined} />) : (
-        <div className="overflow-x-auto">
+        <>
+        <div className="divide-y divide-slate-100 md:hidden">
+          {filtered.map((r) => {
+            const labelled = columns.filter((c) => c.label)
+            const main = labelled.find((c) => ['name', 'title', 'number', 'business_name', 'company'].includes(c.key)) || labelled[0] // the card's headline
+            const rest = labelled.filter((c) => c !== main)
+            const inline = columns.filter((c) => !c.label) // checkbox / action columns have no label
+            const val = (c: Column) => (c.render ? c.render(r) : Array.isArray(r[c.key]) ? r[c.key].join(', ') : r[c.key])
+            const shown = rest.map((c) => ({ c, v: val(c) })).filter(({ v }) => v !== null && v !== undefined && v !== '' && v !== '—')
+            const canAct = !canEdit || canEdit(r)
+            return (
+              <div key={r.id} onClick={() => onRowClick?.(r)} className={cn('p-4', onRowClick && 'cursor-pointer active:bg-slate-50', rowClass?.(r))}>
+                <div className="flex items-start gap-3">
+                  {inline.map((c) => <div key={c.key} onClick={(e) => e.stopPropagation()} className="shrink-0 pt-0.5">{val(c)}</div>)}
+                  <div className="min-w-0 flex-1 text-[15px] font-medium text-slate-800">{main ? val(main) : null}</div>
+                </div>
+                {shown.length > 0 && (
+                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
+                    {shown.map(({ c, v }) => <div key={c.key} className="min-w-0"><dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{c.label}</dt><dd className="mt-0.5 text-slate-700">{v}</dd></div>)}
+                  </dl>
+                )}
+                {((onEdit && canAct) || (onDelete && canAct)) && (
+                  <div className="mt-3 flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {onEdit && canAct && <button className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 text-sm font-medium text-slate-600 active:bg-slate-50" onClick={() => onEdit(r)}><Pencil size={15} /> Edit</button>}
+                    {onDelete && canAct && <button className="flex items-center gap-1.5 rounded-xl border border-red-100 px-3.5 text-sm font-medium text-red-600 active:bg-red-50" onClick={() => onDelete(r)}><Trash2 size={15} /> Delete</button>}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead><tr className="border-b border-slate-100 bg-slate-50/70 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
               {columns.map((c) => (
@@ -141,6 +172,7 @@ export function DataTable({ rows, columns, onRowClick, onEdit, onDelete, empty, 
             </tbody>
           </table>
         </div>
+        </>
       )}
     </Card>
   )

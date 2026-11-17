@@ -8,7 +8,7 @@ import { cn } from '../lib/util'
 import { Button, useToast } from './ui'
 
 /** The fastest way to store a lead: name + number + Enter. Everything else can be filled in later. */
-export default function QuickAddLead({ market, onMore }: { market?: 'local' | 'international'; onMore?: () => void }) {
+export default function QuickAddLead({ market, onMore, onSaved }: { market?: 'local' | 'international'; onMore?: () => void; onSaved?: () => void }) {
   const toast = useToast()
   const nameRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState('')
@@ -36,6 +36,7 @@ export default function QuickAddLead({ market, onMore }: { market?: 'local' | 'i
       toast(`Saved "${name.trim()}" — ${mkt === 'local' ? 'Local' : 'International'} lead`)
       setName(''); setPhone(''); setWebsite(''); setPicked(null); setDupes(null)
       nameRef.current?.focus()
+      onSaved?.()
     } catch (e: any) { toast(e.message || 'Could not save', 'err') } finally { setBusy(false) }
   }
 

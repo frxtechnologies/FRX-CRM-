@@ -14,7 +14,7 @@ function MoneyTabs() {
   return (
     <div className="mb-5 flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 w-fit max-w-full">
       {([['/finance/pnl', 'Profit & Loss'], ['/finance/income', 'Money in'], ['/finance/expenses', 'Money out'], ['/finance/investments', 'Investments']] as const).map(([to, l]) => (
-        <NavLink key={to} to={to} className={({ isActive }) => cn('whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition', isActive ? 'bg-[#2563EB] text-white shadow' : 'text-slate-600 hover:text-slate-900')}>{l}</NavLink>
+        <NavLink key={to} to={to} className={({ isActive }) => cn('whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition max-lg:py-3', isActive ? 'bg-[#2563EB] text-white shadow' : 'text-slate-600 hover:text-slate-900')}>{l}</NavLink>
       ))}
     </div>
   )

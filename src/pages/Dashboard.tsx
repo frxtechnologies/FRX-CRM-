@@ -134,9 +134,9 @@ export default function Dashboard() {
           <Card>
             <CardHeader title="Today's activities" />
             <ul className="max-h-64 divide-y divide-slate-50 overflow-y-auto text-sm">
-              {todayFus.map((f) => <li key={f.id}><Link className="flex justify-between px-5 py-2.5 hover:bg-slate-50" to={`/leads/${f.lead_id}`}><span>Follow-up: {leads.find((l) => l.id === f.lead_id)?.business_name}</span><Badge tone="blue">{partnerName(f.assigned_to)}</Badge></Link></li>)}
-              {todayTasks.map((x) => <li key={x.id}><Link className="flex justify-between px-5 py-2.5 hover:bg-slate-50" to="/tasks"><span>{x.category === 'Cold Calling' ? 'Call task' : 'Task'}: {x.title}</span><Badge>{partnerName(x.assigned_to)}</Badge></Link></li>)}
-              {deadlines.map((d, i) => <li key={i}><Link className="block px-5 py-2.5 hover:bg-slate-50" to={d.to}>{d.label}</Link></li>)}
+              {todayFus.map((f) => <li key={f.id}><Link className="flex justify-between px-5 py-2.5 max-lg:min-h-11 max-lg:items-center hover:bg-slate-50" to={`/leads/${f.lead_id}`}><span>Follow-up: {leads.find((l) => l.id === f.lead_id)?.business_name}</span><Badge tone="blue">{partnerName(f.assigned_to)}</Badge></Link></li>)}
+              {todayTasks.map((x) => <li key={x.id}><Link className="flex justify-between px-5 py-2.5 max-lg:min-h-11 max-lg:items-center hover:bg-slate-50" to="/tasks"><span>{x.category === 'Cold Calling' ? 'Call task' : 'Task'}: {x.title}</span><Badge>{partnerName(x.assigned_to)}</Badge></Link></li>)}
+              {deadlines.map((d, i) => <li key={i}><Link className="block px-5 py-2.5 max-lg:min-h-11 max-lg:items-center hover:bg-slate-50" to={d.to}>{d.label}</Link></li>)}
               {todayFus.length + todayTasks.length + deadlines.length === 0 && <li className="p-6 text-center text-slate-500">Nothing scheduled for today.</li>}
             </ul>
           </Card>
@@ -145,11 +145,11 @@ export default function Dashboard() {
           <Card className={alertCount ? 'border-amber-200' : ''}>
             <CardHeader title="Business alerts" action={alertCount ? <AlertTriangle size={16} className="text-amber-500" /> : undefined} />
             <ul className="max-h-64 divide-y divide-slate-50 overflow-y-auto text-sm">
-              {overdueFus.map((f) => <li key={f.id}><Link to={`/leads/${f.lead_id}`} className="flex justify-between px-5 py-2.5 hover:bg-slate-50"><span>Overdue follow-up: {leads.find((l) => l.id === f.lead_id)?.business_name}</span><span className="text-xs text-red-600">{fmtDate(f.due_date)}</span></Link></li>)}
-              {overdueInv.map((i) => <li key={i.id}><Link to={`/invoices/${i.id}`} className="flex justify-between px-5 py-2.5 hover:bg-slate-50"><span>Overdue invoice {i.number}</span><span className="text-xs text-red-600">{fmtCompact(num(i.balance), i.currency)}</span></Link></li>)}
-              {unpaid.filter((i) => i.status !== 'Overdue').slice(0, 5).map((i) => <li key={i.id}><Link to={`/invoices/${i.id}`} className="flex justify-between px-5 py-2.5 hover:bg-slate-50"><span>Unpaid: {i.number}</span><span className="text-xs text-slate-500">due {fmtDate(i.due_date)}</span></Link></li>)}
-              {overdueTasks.map((x) => <li key={x.id}><Link to="/tasks" className="flex justify-between px-5 py-2.5 hover:bg-slate-50"><span>Overdue task: {x.title}</span><span className="text-xs text-red-600">{fmtDate(x.due_date)}</span></Link></li>)}
-              {renewals.map((s) => <li key={s.id}><Link to="/subscriptions" className="flex justify-between px-5 py-2.5 hover:bg-slate-50"><span>{s.name} {s.recurring ? 'renews' : 'expires'}</span><span className="text-xs text-amber-600">{fmtDate(s.renewal_date || s.expiration_date)}</span></Link></li>)}
+              {overdueFus.map((f) => <li key={f.id}><Link to={`/leads/${f.lead_id}`} className="flex justify-between px-5 py-2.5 max-lg:min-h-11 max-lg:items-center hover:bg-slate-50"><span>Overdue follow-up: {leads.find((l) => l.id === f.lead_id)?.business_name}</span><span className="text-xs text-red-600">{fmtDate(f.due_date)}</span></Link></li>)}
+              {overdueInv.map((i) => <li key={i.id}><Link to={`/invoices/${i.id}`} className="flex justify-between px-5 py-2.5 max-lg:min-h-11 max-lg:items-center hover:bg-slate-50"><span>Overdue invoice {i.number}</span><span className="text-xs text-red-600">{fmtCompact(num(i.balance), i.currency)}</span></Link></li>)}
+              {unpaid.filter((i) => i.status !== 'Overdue').slice(0, 5).map((i) => <li key={i.id}><Link to={`/invoices/${i.id}`} className="flex justify-between px-5 py-2.5 max-lg:min-h-11 max-lg:items-center hover:bg-slate-50"><span>Unpaid: {i.number}</span><span className="text-xs text-slate-500">due {fmtDate(i.due_date)}</span></Link></li>)}
+              {overdueTasks.map((x) => <li key={x.id}><Link to="/tasks" className="flex justify-between px-5 py-2.5 max-lg:min-h-11 max-lg:items-center hover:bg-slate-50"><span>Overdue task: {x.title}</span><span className="text-xs text-red-600">{fmtDate(x.due_date)}</span></Link></li>)}
+              {renewals.map((s) => <li key={s.id}><Link to="/subscriptions" className="flex justify-between px-5 py-2.5 max-lg:min-h-11 max-lg:items-center hover:bg-slate-50"><span>{s.name} {s.recurring ? 'renews' : 'expires'}</span><span className="text-xs text-amber-600">{fmtDate(s.renewal_date || s.expiration_date)}</span></Link></li>)}
               {alertCount + unpaid.length === 0 && <li className="p-6 text-center text-slate-500">No alerts — all clear.</li>}
             </ul>
           </Card>

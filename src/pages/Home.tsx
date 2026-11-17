@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Check, ChevronRight, Plus } from 'lucide-react'
 import { byId, useTable, useVersion } from '../lib/db'
 import { create, financeSummary, getCurrentUserId, notify, partnerName, subEffectiveStatus, update, usePrefs } from '../lib/services'
@@ -13,7 +13,9 @@ function Big({ label, value, hint, tone, to }: { label: string; value: string | 
   return (
     <Link to={to} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="text-sm font-medium text-slate-500">{label}</div>
-      <div className={cn('mt-1 text-4xl font-bold tracking-tight', tone === 'red' ? 'text-red-600' : tone === 'green' ? 'text-emerald-600' : tone === 'blue' ? 'text-[#2563EB]' : 'text-[#0B1F3A]')}>{value}</div>
+      <div className={cn('mt-1 whitespace-nowrap text-[26px] font-bold tracking-tight [overflow-wrap:normal] lg:text-4xl', tone === 'red' ? 'text-red-600' : tone === 'green' ? 'text-emerald-600' : tone === 'blue' ? 'text-[#2563EB]' : 'text-[#0B1F3A]')}>
+        {(() => { const m = typeof value === 'string' ? value.match(/^([A-Z]{3}) (.+)$/) : null; return m ? <><span className="mr-1 text-sm font-semibold text-slate-400 lg:text-base">{m[1]}</span>{m[2]}</> : value })()}
+      </div>
       {hint && <div className="mt-1 flex items-center justify-between text-xs text-slate-400">{hint}<ChevronRight size={14} className="opacity-0 transition group-hover:opacity-100" /></div>}
     </Link>
   )
@@ -28,6 +30,9 @@ export default function Home() {
   const profiles = useTable('profiles'), fus = useTable('follow_ups'), leads = useTable('leads'), tasks = useTable('business_tasks'), invoices = useTable('invoices'), subs = useTable('subscriptions'), logs = useTable('activity_logs')
   const t = today()
   const [title, setTitle] = useState('')
+  const taskRef = useRef<HTMLInputElement>(null)
+  const [sp, setSp] = useSearchParams()
+  useEffect(() => { if (sp.get('task')) { setTimeout(() => { taskRef.current?.scrollIntoView({ block: 'center' }); taskRef.current?.focus() }, 150); setSp({}, { replace: true }) } }, [])
   const [due, setDue] = useState('')
   const [who, setWho] = useState(user?.id || '')
   const hour = new Date().getHours()
@@ -119,7 +124,7 @@ export default function Home() {
             </div>
             <Card className="p-4">
               <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); addTask() }}>
-                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add a task… e.g. Send proposal to Northwind" className="min-w-52 flex-[3] rounded-xl border border-slate-200 px-4 py-2.5 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
+                <input ref={taskRef} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add a task… e.g. Send proposal to Northwind" className="min-w-52 flex-[3] rounded-xl border border-slate-200 px-4 py-2.5 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
                 <PartnerSelect className="!w-auto !rounded-xl !py-2.5" value={who} onChange={setWho} />
                 <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={cn(inputCls, '!w-auto !rounded-xl !py-2.5')} title="Due date (optional)" />
                 <button type="submit" disabled={!title.trim()} className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 font-medium text-white hover:bg-[#1d4ed8] disabled:opacity-40"><Plus size={16} /> Add</button>
@@ -138,7 +143,7 @@ export default function Home() {
           {heads.length > 0 && (
             <Card className="border-amber-200 bg-amber-50/60 p-5">
               <h2 className="mb-2 font-semibold text-amber-900">Heads up</h2>
-              <ul className="space-y-1.5">{heads.map((h) => <li key={h.k}><Link to={h.to} className="flex items-center justify-between text-sm text-amber-900 hover:underline">{h.text}<ArrowRight size={14} /></Link></li>)}</ul>
+              <ul className="space-y-1.5">{heads.map((h) => <li key={h.k}><Link to={h.to} className="flex min-h-11 items-center justify-between text-sm text-amber-900 hover:underline">{h.text}<ArrowRight size={14} /></Link></li>)}</ul>
             </Card>
           )}
           <Card className="p-5">

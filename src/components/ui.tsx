@@ -98,18 +98,22 @@ export function Modal({ open, onClose, title, children, wide, footer }: { open: 
     if (!open) return
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
+    // stop the page behind a sheet from scrolling
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', h); document.body.style.overflow = prev }
   }, [open, onClose])
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#071426]/50 p-4 backdrop-blur-sm sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={cn('w-full rounded-xl bg-white shadow-2xl animate-in', wide ? 'max-w-3xl' : 'max-w-xl')}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#071426]/50 sm:items-start sm:overflow-y-auto sm:p-8 sm:backdrop-blur-sm" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className={cn('flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl animate-sheet sm:max-h-none sm:animate-in sm:rounded-xl', wide ? 'sm:max-w-3xl' : 'sm:max-w-xl')}>
+        <div className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-slate-300 sm:hidden" />
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-3.5 sm:py-4">
           <h2 className="text-base font-semibold text-[#0B1F3A]">{title}</h2>
-          <button onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X size={20} /></button>
         </div>
-        <div className="p-5">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">{footer}</div>}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 sm:overflow-visible">{children}</div>
+        {footer && <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-slate-100 px-5 pt-3 sm:flex sm:justify-end sm:pb-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>{footer}</div>}
       </div>
     </div>
   )

@@ -118,37 +118,41 @@ function LeadRow({ lead, statuses, selected, onToggle, onOpen }: { lead: Row; st
     <div className={cn('group relative rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md', overdue ? 'border-red-200' : 'border-slate-200')}>
       <span className={cn('absolute inset-y-3 left-0 w-1 rounded-r-full', overdue ? 'bg-red-500' : dueToday ? 'bg-amber-400' : tone === 'green' ? 'bg-emerald-500' : 'bg-[#2563EB]/60')} />
       <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
-        <input type="checkbox" className="mt-1.5 h-4 w-4 accent-[#2563EB]" checked={selected} onChange={onToggle} title="Select" />
-        <button onClick={onOpen} className="min-w-48 flex-1 text-left">
-          <div className="text-[17px] font-semibold leading-tight text-[#0B1F3A] group-hover:text-[#2563EB]">{lead.business_name}</div>
-          <div className="mt-0.5 text-sm text-slate-500">{[lead.contact_person, [lead.city, lead.country].filter(Boolean).join(', '), lead.industry].filter(Boolean).join(' · ') || 'No details yet — open to add'}</div>
-        </button>
-        <select value={lead.status} onChange={(e) => run(async () => { await setLeadStatus(lead, e.target.value) }, 'Status updated')}
-          className={cn('rounded-full border py-1.5 pl-3 pr-7 text-sm font-medium outline-none', tone2cls[tone] || tone2cls.slate)} title="Change status">
-          {statuses.map((s) => <option key={s}>{s}</option>)}
-        </select>
-        <div className="flex min-w-24 items-center justify-end"><PartnerChip id={lead.assigned_to} /></div>
+        <div className="flex min-w-0 flex-1 basis-full items-start gap-3 sm:basis-auto">
+          <input type="checkbox" className="mt-1.5 h-4 w-4 shrink-0 accent-[#2563EB]" checked={selected} onChange={onToggle} title="Select" />
+          <button onClick={onOpen} className="min-w-0 flex-1 text-left">
+            <div className="text-[17px] font-semibold leading-tight text-[#0B1F3A] group-hover:text-[#2563EB]">{lead.business_name}</div>
+            <div className="mt-0.5 text-sm text-slate-500">{[lead.contact_person, [lead.city, lead.country].filter(Boolean).join(', '), lead.industry].filter(Boolean).join(' · ') || 'No details yet — open to add'}</div>
+          </button>
+        </div>
+        <div className="flex w-full items-center justify-between gap-3 sm:contents">
+          <select value={lead.status} onChange={(e) => run(async () => { await setLeadStatus(lead, e.target.value) }, 'Status updated')}
+            className={cn('min-w-0 max-w-[65%] rounded-full border py-1.5 pl-3 pr-7 text-sm font-medium outline-none sm:max-w-none', tone2cls[tone] || tone2cls.slate)} title="Change status">
+            {statuses.map((s) => <option key={s}>{s}</option>)}
+          </select>
+          <div className="flex shrink-0 items-center justify-end sm:min-w-24"><PartnerChip id={lead.assigned_to} /></div>
+        </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 pl-8">
+      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 sm:flex sm:flex-wrap sm:items-center sm:pl-8">
         {call ? <>
-          <a href={`tel:${call}`} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200"><Phone size={14} />{call}</a>
-          <a target="_blank" rel="noreferrer" href={`https://wa.me/${(lead.whatsapp || lead.phone).replace(/\D/g, '')}`} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100"><MessageCircle size={14} />WhatsApp</a>
-        </> : <span className="text-sm text-slate-400">No phone yet</span>}
-        <select value="" onChange={(e) => e.target.value && run(() => logLeadActivity(lead.id, { type: e.target.value }), `Logged: ${e.target.value}${['New Lead', 'Not Contacted', 'Ready to Contact'].includes(lead.status) ? ` — status is still "${lead.status}"; change it if you like` : ''}`)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-600 outline-none hover:border-slate-300" title="Record something you did">
+          <a href={`tel:${call}`} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200 max-lg:min-h-11"><Phone size={14} /><span className="truncate">{call}</span></a>
+          <a target="_blank" rel="noreferrer" href={`https://wa.me/${(lead.whatsapp || lead.phone).replace(/\D/g, '')}`} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 max-lg:min-h-11"><MessageCircle size={14} />WhatsApp</a>
+        </> : <span className="col-span-2 text-sm text-slate-400">No phone yet</span>}
+        <select value="" onChange={(e) => e.target.value && run(() => logLeadActivity(lead.id, { type: e.target.value }), `Logged: ${e.target.value}${['New Lead', 'Not Contacted', 'Ready to Contact'].includes(lead.status) ? ` — status is still "${lead.status}"; change it if you like` : ''}`)} className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-600 outline-none hover:border-slate-300 sm:w-auto" title="Record something you did">
           <option value="">+ I just did…</option>
           {ACTIVITY_TYPES.map((a) => <option key={a}>{a}</option>)}
         </select>
-        <div className="ml-auto flex items-center gap-2">
-          {lead.next_follow_up && !closed && <span className={cn('inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium', overdue ? 'bg-red-50 text-red-700' : dueToday ? 'bg-amber-50 text-amber-800' : 'bg-slate-50 text-slate-600')}><CalendarClock size={14} />Follow up: {whenLabel(lead.next_follow_up, t)}</span>}
+        <div className="contents sm:ml-auto sm:flex sm:items-center sm:gap-2">
           {!closed && <select value="" onChange={(e) => {
             const v = e.target.value; if (!v) return
             let d = ''
             if (v === 'pick') { const x = window.prompt('Follow-up date (YYYY-MM-DD)', addDays(t, 1)); if (!x || !/^\d{4}-\d{2}-\d{2}$/.test(x)) return; d = x } else d = addDays(t, Number(v))
             run(() => scheduleFollowUp(lead.id, d, lead.assigned_to), `Follow-up set for ${whenLabel(d, t)}`)
-          }} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-600 outline-none hover:border-slate-300" title="Schedule a follow-up">
+          }} className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-600 outline-none hover:border-slate-300 sm:w-auto sm:order-2" title="Schedule a follow-up">
             <option value="">{lead.next_follow_up ? 'Reschedule…' : 'Set follow-up…'}</option>
             {FOLLOW_PICKS.map(([l, n]) => <option key={l} value={n}>{l}</option>)}<option value="pick">Pick a date…</option>
           </select>}
+          {lead.next_follow_up && !closed && <span className={cn('col-span-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium sm:order-1', overdue ? 'bg-red-50 text-red-700' : dueToday ? 'bg-amber-50 text-amber-800' : 'bg-slate-50 text-slate-600')}><CalendarClock size={14} />Follow up: {whenLabel(lead.next_follow_up, t)}</span>}
         </div>
       </div>
     </div>
@@ -224,7 +228,7 @@ export default function Leads({ market }: { market?: 'local' | 'international' }
     toast(`${selected.size} leads updated`); setSelected(new Set())
   }
   const pill = (k: Quick, label: string, danger = false) => (
-    <button key={k} onClick={() => setQuick(k)} className={cn('rounded-full border px-4 py-2 text-sm font-medium transition', quick === k ? 'border-[#0B1F3A] bg-[#0B1F3A] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300')}>
+    <button key={k} onClick={() => setQuick(k)} className={cn('shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition', quick === k ? 'border-[#0B1F3A] bg-[#0B1F3A] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300')}>
       {label} <span className={cn('ml-1 rounded-full px-1.5 text-xs', quick === k ? 'bg-white/20' : danger && count(k) ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500')}>{count(k)}</span>
     </button>
   )
@@ -238,14 +242,14 @@ export default function Leads({ market }: { market?: 'local' | 'international' }
         </div>
         <div className="flex rounded-full border border-slate-200 bg-white p-1">
           {([[undefined, 'All', '/leads'], ['local', 'Pakistan', '/leads/local'], ['international', 'International', '/leads/international']] as const).map(([k, l, to]) => (
-            <Link key={l} to={to} className={cn('rounded-full px-4 py-1.5 text-sm font-medium transition', market === k ? 'bg-[#2563EB] text-white shadow' : 'text-slate-600 hover:text-slate-900')}>{l}</Link>
+            <Link key={l} to={to} className={cn('rounded-full px-4 py-1.5 text-sm font-medium transition max-lg:py-2.5', market === k ? 'bg-[#2563EB] text-white shadow' : 'text-slate-600 hover:text-slate-900')}>{l}</Link>
           ))}
         </div>
       </div>
 
       <QuickAddLead market={market} onMore={() => setAdding(true)} />
 
-      <div className="mb-4 mt-6 flex flex-wrap items-center gap-2">
+      <div className="-mx-4 mb-4 mt-6 flex items-center gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-0 [scrollbar-width:none]">
         {pill('all', 'Everyone')}{pill('due', 'Follow up now', true)}{pill('new', 'Not contacted yet')}{pill('interested', 'Interested')}{pill('won', 'Won')}
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -256,8 +260,8 @@ export default function Leads({ market }: { market?: 'local' | 'international' }
         </div>
         <div className="ml-auto flex gap-2">
           <input ref={fileRef} type="file" accept=".csv" hidden onChange={(e) => { const x = e.target.files?.[0]; if (x) importCsv(x); e.target.value = '' }} />
-          <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}><Upload size={14} /> Import CSV</Button>
-          <Button variant="secondary" size="sm" onClick={exportCsv}><Download size={14} /> Export</Button>
+          <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}><Upload size={14} /><span className="hidden sm:inline">Import CSV</span></Button>
+          <Button variant="secondary" size="sm" onClick={exportCsv}><Download size={14} /><span className="hidden sm:inline">Export</span></Button>
         </div>
       </div>
       {showFilters && (

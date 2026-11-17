@@ -49,6 +49,11 @@ export async function create(table: TableName, values: Record<string, any>, opts
   if (!opts.silent && LABEL[table]) {
     const [noun, nm] = LABEL[table]!
     await logActivity(opts.summary || `added ${noun === 'lead' && row.market ? row.market + ' lead' : 'new ' + noun} ${nm(row)}`, table, row.id, 'create')
+    // tell the OTHER partner (this also becomes a phone alert); bulk imports use silent:true so they never spam
+    if (table === 'leads') {
+      const other = snapshot('profiles').find((p) => p.id !== currentUserId)
+      if (other) await notify({ title: `New ${row.market === 'local' ? 'Pakistan' : 'international'} lead: ${row.business_name}`, body: `Added by ${partnerName(currentUserId)}`, link: `/leads/${row.id}`, user_id: other.id, kind: 'lead' })
+    }
   }
   return row
 }
