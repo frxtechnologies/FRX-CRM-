@@ -7,6 +7,9 @@
 -- 2) Every morning at 09:00 Pakistan time (04:00 UTC) each partner gets one summary alert, but only if there is
 --    something to say.
 
+-- needed for instant alerts
+create extension if not exists pg_net;
+
 create or replace function public.push_on_notification() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -27,7 +30,8 @@ drop trigger if exists notifications_push on public.notifications;
 create trigger notifications_push after insert on public.notifications
   for each row execute function public.push_on_notification();
 
--- morning summary (re-running replaces the old schedule)
+-- morning summary (needs pg_cron; re-running replaces the old schedule)
+create extension if not exists pg_cron;
 select cron.unschedule('frx-daily-digest') where exists (select 1 from cron.job where jobname = 'frx-daily-digest');
 select cron.schedule('frx-daily-digest', '0 4 * * *', $cron$
   select net.http_post(

@@ -29,6 +29,7 @@ import Reports from './pages/Reports'
 import SettingsPage from './pages/Settings'
 import Vault from './pages/Vault'
 import Personal from './pages/Personal'
+import Messages from './pages/Messages'
 
 function Gate() {
   const { user, loading, signOut } = useAuth()
@@ -76,6 +77,7 @@ function Gate() {
         <Route path="invoices/:id" element={<InvoiceDetail />} />
         <Route path="vault" element={<Vault />} />
         <Route path="personal" element={<Personal />} />
+        <Route path="messages" element={<Messages />} />
         <Route path="subscriptions" element={<Subscriptions />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="documents" element={<Documents />} />

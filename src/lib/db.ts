@@ -7,7 +7,7 @@ export const TABLES = [
   'profiles', 'leads', 'lead_activities', 'lead_notes', 'follow_ups', 'clients', 'projects', 'project_tasks',
   'business_tasks', 'business_notes', 'income_transactions', 'expense_transactions', 'investments', 'invoices',
   'invoice_items', 'invoice_payments', 'subscriptions', 'documents', 'notifications', 'activity_logs',
-  'exchange_rates', 'app_settings', 'vault_items', 'personal_expenses',
+  'exchange_rates', 'app_settings', 'vault_items', 'personal_expenses', 'messages',
 ] as const
 export type TableName = (typeof TABLES)[number]
 
@@ -41,7 +41,7 @@ export async function loadTable(t: TableName) {
 
 let realtimeStarted = false
 /** Tables added later by an optional SQL migration. If one is missing the app still loads; its page explains what to run. */
-const OPTIONAL = new Set<string>(['vault_items', 'personal_expenses'])
+const OPTIONAL = new Set<string>(['vault_items', 'personal_expenses', 'messages'])
 export const missingTables = new Set<string>()
 export async function loadAll() {
   missingTables.clear()
@@ -56,7 +56,7 @@ export async function loadAll() {
     })
   } else {
     const ch = supabase!.channel('frx-all')
-    for (const t of TABLES) ch.on('postgres_changes', { event: '*', schema: 'public', table: t }, () => { loadTable(t) })
+    for (const t of TABLES) if (!missingTables.has(t)) ch.on('postgres_changes', { event: '*', schema: 'public', table: t }, () => { loadTable(t) })
     ch.subscribe()
   }
 }

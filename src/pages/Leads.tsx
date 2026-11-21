@@ -283,7 +283,7 @@ export default function Leads({ market }: { market?: 'local' | 'international' }
           <PartnerSelect className="!w-auto !py-1.5" value="" onChange={(v) => v && bulk({ assigned_to: v }, `assigned to ${partnerName(v)}`)} placeholder="Give to…" />
           <Select className="!w-auto !py-1.5" value="" onChange={(v) => v && bulk({ priority: v }, `priority → ${v}`)} placeholder="Priority…" options={PRIORITIES} />
           <Button size="sm" variant="secondary" onClick={() => { const tag = window.prompt('Tag to add to selected leads'); if (tag) Promise.all([...selected].map((id) => { const l = allLeads.find((x) => x.id === id)!; return update('leads', id, { tags: [...new Set([...(l.tags || []), tag.trim()])] }, { silent: true }) })).then(() => { toast('Tag added'); setSelected(new Set()) }) }}>Add tag</Button>
-          <Button size="sm" variant="danger" onClick={() => { if (window.confirm(`Permanently delete ${selected.size} leads and their history?`)) Promise.all([...selected].map((id) => remove('leads', id, { silent: true }))).then(() => { toast('Leads deleted'); setSelected(new Set()) }) }}>Delete</Button>
+          <Button size="sm" variant="danger" onClick={() => { if (window.confirm(`Permanently delete ${selected.size} leads and their history?`)) Promise.all([...selected].map((id) => remove('leads', id, { silent: true }))).then(async () => { await import('../lib/services').then((m) => m.logActivity(`bulk-deleted ${selected.size} lead${selected.size === 1 ? '' : 's'}`, 'leads', undefined, 'delete')); toast('Leads deleted'); setSelected(new Set()) }) }}>Delete</Button>
           <button className="ml-auto text-slate-300 hover:text-white" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
       )}

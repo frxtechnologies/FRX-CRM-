@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowRight, Check, ChevronRight, Plus } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, MessageCircle, Plus } from 'lucide-react'
 import { byId, useTable, useVersion } from '../lib/db'
 import { create, financeSummary, getCurrentUserId, notify, partnerName, subEffectiveStatus, update, usePrefs } from '../lib/services'
 import { completeFollowUp, rescheduleFollowUp } from '../lib/leadOps'
@@ -27,7 +27,7 @@ export default function Home() {
   const nav = useNavigate()
   const toast = useToast()
   const base = usePrefs().base_currency
-  const profiles = useTable('profiles'), fus = useTable('follow_ups'), leads = useTable('leads'), tasks = useTable('business_tasks'), invoices = useTable('invoices'), subs = useTable('subscriptions'), logs = useTable('activity_logs')
+  const chat = useTable('messages'), profiles = useTable('profiles'), fus = useTable('follow_ups'), leads = useTable('leads'), tasks = useTable('business_tasks'), invoices = useTable('invoices'), subs = useTable('subscriptions'), logs = useTable('activity_logs')
   const t = today()
   const [title, setTitle] = useState('')
   const taskRef = useRef<HTMLInputElement>(null)
@@ -81,6 +81,9 @@ export default function Home() {
         <p className="mt-1 text-slate-500">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </div>
 
+      {(() => { const n = chat.filter((m) => m.sender_id !== user?.id && !m.read_at && !m.deleted); const from = profiles.find((p) => p.id === n[0]?.sender_id); return n.length ? (
+        <Link to="/messages" className="mb-5 flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm active:bg-blue-100"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-white"><MessageCircle size={20} /></span><span className="min-w-0 flex-1"><span className="block font-semibold text-[#0B1F3A]">{n.length} unread message{n.length === 1 ? '' : 's'}{from ? ` from ${from.short_name}` : ''}</span><span className="block truncate text-sm text-slate-600">{String(n[n.length - 1].body || (n[n.length - 1].attachment_name ? 'Attachment' : n[n.length - 1].ref_label) || '')}</span></span><ArrowRight size={18} className="shrink-0 text-[#2563EB]" /></Link>
+      ) : null })()}
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Big label="Follow-ups to do" value={pending.length} tone={pending.length ? 'blue' : undefined} hint="due today or late" to="/leads/follow-ups" />
         <Big label="Running late" value={overdue.length} tone={overdue.length ? 'red' : 'green'} hint={overdue.length ? 'needs attention' : 'nothing late'} to="/leads/follow-ups" />

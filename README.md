@@ -34,6 +34,7 @@ Run these in the Supabase **SQL Editor**, in order:
 | 7 | `supabase/7-require-two-step.sql` | **Last, optional:** makes two-step login mandatory in the database. Turn two-step on for both partners first (Settings -> Security) |
 | 8 | `supabase/8-phone-alerts.sql` | Table for the phones that have alerts turned on |
 | 9 | `supabase/9-phone-alerts-triggers.template.sql` | Makes every notification (and a 9am summary) trigger a phone alert. Fill in the two placeholders, or use your private pre-filled `9-phone-alerts-triggers.local.sql` (git-ignored) |
+| 10 | `supabase/10-messages.sql` | The private partner chat |
 
 Create the two logins in Authentication -> Users (tick *Auto Confirm User*) before step 2, and turn off **Allow new users to sign up**.
 
@@ -48,6 +49,17 @@ Built to be used on a phone as an installed app (Add to Home Screen) and still f
 - **Tables become cards** on phones (a headline plus labelled fields, with Edit/Delete buttons); real tables from tablet width up.
 - **Touch comfort:** 44px minimum tap targets, 16px inputs (stops iPhones zooming when you tap a field), notch and home-bar safe areas, no sideways scrolling on any page.
 - **How it was checked:** every page measured at 375px for overflow, small tap targets, input sizes and bare tables; the main flows (quick add, More sheet, forms, back, search, new task) driven through the UI; and the desktop layout re-checked afterwards.
+
+## Messages (partner chat)
+
+A private WhatsApp-style chat between the two partners, in its own **Messages** tab (sidebar, and the phone tab bar with an unread badge).
+
+- **What you can send:** text, photos and files (up to 10 MB, no scripts or web pages), a **shared CRM record** (lead, client, project, invoice or task, shown as a card that opens it), and **replies** that quote the original.
+- **Per message:** tap it for Reply, Copy, **Task for me / Task for your partner** (turns the message into a task), and, for your own messages, Edit and Delete. Delete removes the content for both of you.
+- **Read receipts:** one tick = sent, two blue ticks = your partner has seen it. A "New messages" line marks where you stopped reading.
+- **Alerts:** every message creates a notification for the other partner, which the phone-alert system delivers as a push (title = sender, body = first 100 characters). Chat notifications stay out of the bell list; the Messages badge and a banner on the Today page show unread counts. Switch the alert off under Settings -> Notifications ("Chat messages").
+- **Security:** only the two partners can read messages; you can only send as yourself; only the sender can edit or delete a message; only the other partner can mark it read; messages cannot be hard-deleted from the app. Messages are not written to the activity log. Do not send passwords here, use the Vault. Message text appears in the alert preview on the lock screen.
+- **Not built:** voice notes, typing indicator, online status, group chats, calls. Deleting a message does not remove an attached file from storage.
 
 ## Phone alerts
 

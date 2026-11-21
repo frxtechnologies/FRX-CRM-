@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import {
   LayoutDashboard, Users, UserCheck, FolderKanban, CheckSquare, Wallet, FileText, Repeat, BarChart3, Files, History, Settings,
   ChevronDown, ChevronsLeft, ChevronsRight, Bell, Search, LogOut, CalendarClock, FileBarChart, MoreHorizontal, KeyRound, PiggyBank,
-  ArrowLeft, Plus, X, ChevronRight,
+  ArrowLeft, Plus, X, ChevronRight, MessageCircle,
 } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { useTable } from '../lib/db'
@@ -13,9 +13,10 @@ import QuickAddLead from './QuickAddLead'
 import { timeAgo, cn, today } from '../lib/util'
 import { IS_DEMO } from '../lib/db'
 
-type Item = { to: string; label: string; icon: any; match?: (p: string) => boolean; badge?: 'followups'; children?: { to: string; label: string; icon: any }[] }
+type Item = { to: string; label: string; icon: any; match?: (p: string) => boolean; badge?: 'followups' | 'messages'; children?: { to: string; label: string; icon: any }[] }
 const NAV: Item[] = [
   { to: '/', label: 'Today', icon: LayoutDashboard },
+  { to: '/messages', label: 'Messages', icon: MessageCircle, badge: 'messages' },
   { to: '/leads', label: 'Leads', icon: Users, match: (p) => p.startsWith('/leads') && p !== '/leads/follow-ups' },
   { to: '/leads/follow-ups', label: 'Follow-ups', icon: CalendarClock, badge: 'followups' },
   { to: '/clients', label: 'Clients', icon: UserCheck },
@@ -37,14 +38,15 @@ const NAV: Item[] = [
 ]
 
 // Phone layout: four tabs you use all day + a "More" sheet for everything else.
-const TABS = [NAV[0], NAV[1], NAV[2], NAV[5]]
-const MORE_ITEMS = [NAV[3], NAV[4], NAV[6], NAV[7], NAV[8], NAV[9], ...(NAV[10].children || []).map((c) => ({ ...c, match: undefined as undefined }))] as { to: string; label: string; icon: any; match?: (p: string) => boolean }[]
+const navBy = (to: string) => NAV.find((i) => i.to === to)!
+const TABS = ['/', '/leads', '/leads/follow-ups', '/messages'].map(navBy)
+const MORE_ITEMS = [...['/clients', '/projects', '/tasks', '/finance/pnl', '/invoices', '/vault', '/personal'].map(navBy), ...(navBy('/more').children || []).map((c) => ({ ...c, match: undefined as undefined }))] as { to: string; label: string; icon: any; match?: (p: string) => boolean }[]
 
 const CRUMBS: Record<string, string> = {
   leads: 'Leads', local: 'Local Leads', international: 'International Leads', 'follow-ups': 'Follow-ups', clients: 'Clients', projects: 'Projects',
   tasks: 'Tasks', finance: 'Money', income: 'Money in', expenses: 'Money out', investments: 'Investments', pnl: 'Profit & Loss', invoices: 'Invoices',
   subscriptions: 'Subscriptions', analytics: 'Sales Analytics', documents: 'Documents', activity: 'Activity Log', settings: 'Settings', reports: 'Reports',
-  notifications: 'Notifications', new: 'New', overview: 'Business overview', vault: 'Vault', personal: 'Personal spending', more: 'More',
+  notifications: 'Notifications', messages: 'Messages', new: 'New', overview: 'Business overview', vault: 'Vault', personal: 'Personal spending', more: 'More',
 }
 const DETAIL_TITLE: Record<string, string> = { leads: 'Lead', clients: 'Client', projects: 'Project', invoices: 'Invoice' }
 
@@ -122,7 +124,7 @@ function MobileSearch({ open, onClose }: { open: boolean; onClose: () => void })
 function NotificationBell() {
   const { user } = useAuth()
   const all = useTable('notifications')
-  const mine = useMemo(() => all.filter((n) => !n.user_id || n.user_id === user?.id).sort((a, b) => b.created_at.localeCompare(a.created_at)), [all, user])
+  const mine = useMemo(() => all.filter((n) => n.kind !== 'message' && (!n.user_id || n.user_id === user?.id)).sort((a, b) => b.created_at.localeCompare(a.created_at)), [all, user])
   const unread = mine.filter((n) => !(n.read_by || []).includes(user?.id))
   const [open, setOpen] = useState(false)
   const nav = useNavigate()
@@ -171,6 +173,10 @@ export default function Layout() {
   const nav = useNavigate()
   const fuAll = useTable('follow_ups')
   const dueCount = fuAll.filter((f) => f.status === 'pending' && f.due_date <= today()).length
+  const msgsAll = useTable('messages')
+  const unreadMsgs = msgsAll.filter((m) => m.sender_id !== user?.id && !m.read_at && !m.deleted).length
+  const badgeCount = (b?: string) => (b === 'followups' ? dueCount : b === 'messages' ? unreadMsgs : 0)
+  const inChat = loc.pathname.startsWith('/messages')
   useEffect(() => { setMoreOpen(false); setQuickOpen(false); setSearchOpen(false); setMenu(false); window.scrollTo(0, 0) }, [loc.pathname])
   useEffect(() => localStorage.setItem('frxos:sb', collapsed ? '1' : '0'), [collapsed])
 
@@ -194,7 +200,7 @@ export default function Layout() {
             return (
               <NavLink key={it.to} to={it.to} end={it.to === '/'} title={it.label} className={cn('flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition', active ? 'bg-[#2563EB] text-white shadow' : 'hover:bg-white/5 hover:text-white')}>
                 <it.icon size={18} className="shrink-0" />{!collapsed && <span className="flex-1">{it.label}</span>}
-                {it.badge === 'followups' && dueCount > 0 && <span className={cn('rounded-full bg-red-500 px-1.5 text-[11px] font-semibold text-white', collapsed && 'absolute -mt-5 ml-4')}>{dueCount}</span>}
+                {badgeCount(it.badge) > 0 && <span className={cn('rounded-full bg-red-500 px-1.5 text-[11px] font-semibold text-white', collapsed && 'absolute -mt-5 ml-4')}>{badgeCount(it.badge)}</span>}
               </NavLink>
             )
           }
@@ -230,7 +236,7 @@ export default function Layout() {
       <div className={cn('transition-all duration-200', collapsed ? 'lg:pl-[68px]' : 'lg:pl-64')}>
         <header className="sticky top-0 z-20 border-b border-white/10 bg-[#071426] text-white lg:border-slate-200 lg:bg-white/90 lg:text-slate-800 lg:backdrop-blur" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="flex h-14 items-center gap-2 px-3 sm:px-6 lg:h-16 lg:gap-3 lg:px-6">
-            {isDetail
+            {(isDetail || inChat)
               ? <button onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))} aria-label="Back" className="-ml-1 rounded-lg p-2 text-white hover:bg-white/10 lg:hidden"><ArrowLeft size={22} /></button>
               : <img src="/frx-logo.webp" alt="" className="h-8 w-8 shrink-0 rounded bg-black object-contain lg:hidden" />}
             <div className="min-w-0 flex-1 truncate text-[17px] font-semibold lg:hidden">{title}</div>
@@ -272,16 +278,16 @@ export default function Layout() {
       </div>
 
       {/* ---------- phone only: quick add button + bottom tab bar ---------- */}
-      {!isDetail && <button onClick={() => setQuickOpen(true)} aria-label="Quick add" className="fixed right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-lg shadow-blue-900/30 active:scale-95 lg:hidden" style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+      {!isDetail && !inChat && <button onClick={() => setQuickOpen(true)} aria-label="Quick add" className="fixed right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-lg shadow-blue-900/30 active:scale-95 lg:hidden" style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
         <Plus size={28} />
       </button>}
-      <nav data-mobile-nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      {!inChat && <nav data-mobile-nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="grid grid-cols-5">
           {TABS.map((it) => {
             const active = isActive(it)
             return (
               <NavLink key={it.to} to={it.to} end={it.to === '/'} className={cn('relative flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 text-[11px] font-medium', active ? 'text-[#2563EB]' : 'text-slate-500')}>
-                <span className="relative"><it.icon size={23} strokeWidth={active ? 2.4 : 1.9} />{it.badge === 'followups' && dueCount > 0 && <span className="absolute -right-2.5 -top-1.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] font-bold leading-4 text-white">{dueCount > 99 ? '99+' : dueCount}</span>}</span>
+                <span className="relative"><it.icon size={23} strokeWidth={active ? 2.4 : 1.9} />{badgeCount(it.badge) > 0 && <span className="absolute -right-2.5 -top-1.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] font-bold leading-4 text-white">{badgeCount(it.badge) > 99 ? '99+' : badgeCount(it.badge)}</span>}</span>
                 {it.label}
               </NavLink>
             )
@@ -290,7 +296,7 @@ export default function Layout() {
             <MoreHorizontal size={23} />More
           </button>
         </div>
-      </nav>
+      </nav>}
 
       <Modal open={moreOpen} onClose={() => setMoreOpen(false)} title="Everything else">
         <div className="grid grid-cols-3 gap-2.5">
