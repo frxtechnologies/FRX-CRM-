@@ -1,12 +1,13 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CalendarClock, Download, LayoutGrid, MessageCircle, Phone, Search, SlidersHorizontal, Table2, Upload } from 'lucide-react'
 import { useTable, type Row } from '../lib/db'
 import { create, update, remove, useList, partnerName, getCurrentUserId } from '../lib/services'
 import { findDuplicates, logLeadActivity, scheduleFollowUp, setLeadStatus } from '../lib/leadOps'
 import QuickAddLead from '../components/QuickAddLead'
+import ImportLeads from '../components/ImportLeads'
 import { COUNTRIES, INDUSTRIES_INTL, INDUSTRIES_LOCAL, LEAD_SOURCES, PRIORITIES, SERVICES, CURRENCIES, ACTIVITY_TYPES, LOST_STATUSES, WON } from '../lib/constants'
-import { addDays, cn, downloadBlob, fmtDate, num, parseCSV, toCSV, today } from '../lib/util'
+import { addDays, cn, downloadBlob, fmtDate, toCSV, today } from '../lib/util'
 import { Badge, Button, Card, Modal, PartnerChip, PartnerSelect, Select, statusTone, useToast, Empty } from '../components/ui'
 import { FormModal, initialValues, type FieldDef } from '../components/Entity'
 
@@ -82,13 +83,6 @@ export function LeadForm({ open, onClose, market, lead }: { open: boolean; onClo
       </Modal>
     </>
   )
-}
-
-const ALIASES: Record<string, string[]> = {
-  business_name: ['business name', 'business', 'company', 'name', 'company name'], contact_person: ['contact person', 'contact', 'person'], email: ['email', 'business email'],
-  phone: ['phone', 'phone number', 'mobile'], whatsapp: ['whatsapp', 'whatsapp number'], website: ['website', 'url', 'site'], country: ['country'], city: ['city'],
-  industry: ['industry'], business_type: ['business type', 'type'], source: ['source', 'lead source'], priority: ['priority'], deal_value: ['deal value', 'estimated deal value', 'value'],
-  currency: ['currency'], status: ['status'], notes: ['notes', 'business notes'], tags: ['tags'],
 }
 
 const tone2cls: Record<string, string> = {
@@ -173,8 +167,8 @@ export default function Leads({ market }: { market?: 'local' | 'international' }
   const [quick, setQuick] = useState<Quick>('all')
   const [q, setQ] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [f, setF] = useState({ status: '', partner: '', priority: '', source: '', industry: '', tag: '' })
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [shown, setShown] = useState(60)
+  const [f, setF] = useState({ status: '', partner: '', priority: '', source: '', industry: '', tag: '', country: '' })
   const t = today()
 
   const leads = useMemo(() => allLeads.filter((l) => !market || l.market === market), [allLeads, market])
@@ -184,8 +178,8 @@ export default function Leads({ market }: { market?: 'local' | 'international' }
     interested: (l) => ['Interested', 'Meeting Scheduled', 'Negotiation', 'Proposal Sent', 'Follow-up Required'].includes(l.status), won: (l) => l.status === WON,
   }
   const search = q.trim().toLowerCase()
-  const filtered = leads.filter((l) => quickFns[quick](l) && (!f.status || l.status === f.status) && (!f.partner || l.assigned_to === f.partner) && (!f.priority || l.priority === f.priority) && (!f.source || l.source === f.source) && (!f.industry || l.industry === f.industry) && (!f.tag || (l.tags || []).includes(f.tag))
-    && (!search || [l.business_name, l.contact_person, l.email, l.phone, l.whatsapp, l.city, l.industry, l.notes, ...(l.tags || [])].some((v) => String(v ?? '').toLowerCase().includes(search))))
+  const filtered = leads.filter((l) => quickFns[quick](l) && (!f.status || l.status === f.status) && (!f.partner || l.assigned_to === f.partner) && (!f.priority || l.priority === f.priority) && (!f.source || l.source === f.source) && (!f.industry || l.industry === f.industry) && (!f.tag || (l.tags || []).includes(f.tag)) && (!f.country || (f.country === 'none' ? !l.country : l.country === f.country))
+    && (!search || [l.business_name, l.contact_person, l.email, l.phone, l.whatsapp, l.city, l.country, l.industry, l.notes, ...(l.tags || [])].some((v) => String(v ?? '').toLowerCase().includes(search))))
     .sort((a, b) => {
       // what needs attention first: overdue, then due today, then newest
       const rank = (l: Row) => (open(l) && l.next_follow_up ? (l.next_follow_up < t ? 0 : l.next_follow_up === t ? 1 : 3) : 2)
@@ -193,28 +187,9 @@ export default function Leads({ market }: { market?: 'local' | 'international' }
     })
   const allTags = [...new Set(leads.flatMap((l) => l.tags || []))]
   const sources = [...new Set(leads.map((l) => l.source).filter(Boolean))], industries = [...new Set(leads.map((l) => l.industry).filter(Boolean))]
+  const countryCounts = useMemo(() => { const m = new Map<string, number>(); leads.forEach((l) => m.set(l.country || 'none', (m.get(l.country || 'none') || 0) + 1)); return [...m.entries()].sort((a, b) => b[1] - a[1]) }, [leads])
   const count = (k: Quick) => leads.filter(quickFns[k]).length
 
-  async function importCsv(file: File) {
-    const rows = parseCSV(await file.text())
-    if (!rows.length) return toast('That CSV has no rows', 'err')
-    let added = 0, dup = 0, bad = 0
-    for (const r of rows) {
-      const get = (k: string) => { const h = Object.keys(r).find((x) => ALIASES[k].includes(x.toLowerCase())); return h ? r[h] : '' }
-      const base: Record<string, any> = {}
-      for (const k of Object.keys(ALIASES)) base[k] = get(k)
-      if (!base.business_name) { bad++; continue }
-      if (findDuplicates(base).length) { dup++; continue }
-      const mk = market || (/pakistan/i.test(base.country) || /^(\+?92|0?3\d{2})/.test((base.phone || '').replace(/[\s-]/g, '')) ? 'local' : 'international')
-      const { tags, ...rest } = base
-      await create('leads', { ...rest, deal_value: base.deal_value ? num(base.deal_value) : 0, currency: base.currency || (mk === 'local' ? 'PKR' : 'USD'), country: base.country || (mk === 'local' ? 'Pakistan' : ''),
-        status: statuses.includes(base.status) ? base.status : 'New Lead', priority: PRIORITIES.includes((base.priority || '').toLowerCase()) ? base.priority.toLowerCase() : 'medium',
-        tags: tags ? tags.split(/[;,]/).map((x: string) => x.trim()).filter(Boolean) : [], market: mk, assigned_to: getCurrentUserId(), services: [] }, { silent: true })
-      added++
-    }
-    await import('../lib/services').then((s) => s.logActivity(`imported ${added} leads from CSV (${dup} duplicates skipped)`, 'leads'))
-    toast(`Imported ${added} lead${added === 1 ? '' : 's'}. Skipped ${dup} duplicate${dup === 1 ? '' : 's'}${bad ? `, ${bad} without a business name` : ''}.`)
-  }
   const exportCsv = () => downloadBlob(`${market || 'all'}-leads.csv`, toCSV(filtered.map((l) => ({ ...l, assigned: partnerName(l.assigned_to) })), [
     ['business_name', 'Business Name'], ['market', 'Market'], ['contact_person', 'Contact Person'], ['email', 'Email'], ['phone', 'Phone'], ['whatsapp', 'WhatsApp'], ['website', 'Website'], ['country', 'Country'], ['city', 'City'],
     ['industry', 'Industry'], ['business_type', 'Business Type'], ['source', 'Source'], ['assigned', 'Assigned'], ['status', 'Status'], ['priority', 'Priority'], ['deal_value', 'Deal Value'], ['currency', 'Currency'],
@@ -252,6 +227,13 @@ export default function Leads({ market }: { market?: 'local' | 'international' }
       <div className="-mx-4 mb-4 mt-6 flex items-center gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-0 [scrollbar-width:none]">
         {pill('all', 'Everyone')}{pill('due', 'Follow up now', true)}{pill('new', 'Not contacted yet')}{pill('interested', 'Interested')}{pill('won', 'Won')}
       </div>
+      {countryCounts.filter(([c]) => c !== 'none').length + (countryCounts.some(([c]) => c === 'none') ? 1 : 0) > 1 && (
+        <div className="-mx-4 mb-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-0 [scrollbar-width:none]">
+          <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">Country</span>
+          <button onClick={() => setF({ ...f, country: '' })} className={cn('shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium', !f.country ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-slate-200 bg-white text-slate-600')}>All countries</button>
+          {countryCounts.map(([c, n]) => <button key={c} onClick={() => setF({ ...f, country: f.country === c ? '' : c })} className={cn('shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium', f.country === c ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-slate-200 bg-white text-slate-600')}>{c === 'none' ? 'No country' : c} <span className="ml-1 opacity-70">{n}</span></button>)}
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-56 flex-1 sm:max-w-sm"><Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, phone, city, notes…" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" /></div>
         <button onClick={() => setShowFilters(!showFilters)} className={cn('inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-sm font-medium', showFilters ? 'border-[#2563EB] text-[#2563EB]' : 'border-slate-200 bg-white text-slate-600')}><SlidersHorizontal size={15} /> Filters</button>
@@ -259,8 +241,7 @@ export default function Leads({ market }: { market?: 'local' | 'international' }
           {([['list', Table2, 'List'], ['kanban', LayoutGrid, 'Board']] as const).map(([k, I, l]) => <button key={k} onClick={() => setView(k)} className={cn('flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium', view === k ? 'bg-[#0B1F3A] text-white' : 'text-slate-600')}><I size={14} />{l}</button>)}
         </div>
         <div className="ml-auto flex gap-2">
-          <input ref={fileRef} type="file" accept=".csv" hidden onChange={(e) => { const x = e.target.files?.[0]; if (x) importCsv(x); e.target.value = '' }} />
-          <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}><Upload size={14} /><span className="hidden sm:inline">Import CSV</span></Button>
+          <ImportLeads compact />
           <Button variant="secondary" size="sm" onClick={exportCsv}><Download size={14} /><span className="hidden sm:inline">Export</span></Button>
         </div>
       </div>
@@ -272,7 +253,7 @@ export default function Leads({ market }: { market?: 'local' | 'international' }
           {sources.length > 0 && <Select className="!w-auto" value={f.source} onChange={(v) => setF({ ...f, source: v })} placeholder="Any source" options={sources} />}
           {industries.length > 0 && <Select className="!w-auto" value={f.industry} onChange={(v) => setF({ ...f, industry: v })} placeholder="Any industry" options={industries} />}
           {allTags.length > 0 && <Select className="!w-auto" value={f.tag} onChange={(v) => setF({ ...f, tag: v })} placeholder="Any tag" options={allTags} />}
-          <button className="text-sm text-slate-500 underline" onClick={() => setF({ status: '', partner: '', priority: '', source: '', industry: '', tag: '' })}>Clear</button>
+          <button className="text-sm text-slate-500 underline" onClick={() => setF({ status: '', partner: '', priority: '', source: '', industry: '', tag: '', country: '' })}>Clear</button>
         </div>
       )}
 
@@ -293,7 +274,8 @@ export default function Leads({ market }: { market?: 'local' | 'international' }
           <Card><Empty title={leads.length === 0 ? 'No leads yet — add your first one above' : 'No leads match this view'} hint={leads.length === 0 ? 'Type a business name and phone number, then press Enter. It takes five seconds.' : 'Try "Everyone" or clear your search and filters.'} /></Card>
         ) : (
           <div className="space-y-3">
-            {filtered.map((l) => <LeadRow key={l.id} lead={l} statuses={statuses} selected={selected.has(l.id)} onToggle={() => toggle(l.id)} onOpen={() => nav(`/leads/${l.id}`)} />)}
+            {filtered.slice(0, shown).map((l) => <LeadRow key={l.id} lead={l} statuses={statuses} selected={selected.has(l.id)} onToggle={() => toggle(l.id)} onOpen={() => nav(`/leads/${l.id}`)} />)}
+            {filtered.length > shown && <button onClick={() => setShown(shown + 100)} className="w-full rounded-2xl border border-dashed border-slate-300 py-3 text-sm font-medium text-slate-600 hover:bg-white">Showing {shown} of {filtered.length} — show more</button>}
           </div>
         )
       ) : (

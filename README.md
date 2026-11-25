@@ -61,6 +61,18 @@ A private WhatsApp-style chat between the two partners, in its own **Messages** 
 - **Security:** only the two partners can read messages; you can only send as yourself; only the sender can edit or delete a message; only the other partner can mark it read; messages cannot be hard-deleted from the app. Messages are not written to the activity log. Do not send passwords here, use the Vault. Message text appears in the alert preview on the lock screen.
 - **Not built:** voice notes, typing indicator, online status, group chats, calls. Deleting a message does not remove an attached file from storage.
 
+## Importing lead spreadsheets
+
+Leads page → **Import leads** (or drag an Excel/CSV file anywhere onto the page; several files at once work too).
+
+- The CRM finds the real lead sheets in the workbook and ignores summary, scoring, method and dropdown tabs, and tabs that only repeat another tab.
+- Columns are matched by their header (Business / Company / Business Name, Direct Phone / Owner's mobile / Public Phone Number …) and, for unlabelled columns, by what the cells contain (emails, websites, phone numbers).
+- **Country detection**, in this order: a Country column, US state or Canadian province, UK postcode / US ZIP in the address, phone format (+44, 07…, +1, +92 …), website/email domain, the rest of the sheet, the file name. Each lead gets the country and a country tag (UK, US, PK …); anything undetectable is tagged "Country unknown". Pakistan leads go to the Pakistan market, all others to International.
+- "Not found", "None found", "Not verified" and similar are treated as blank. Phones are tidied to international format. Columns the CRM has no field for (score breakdown, address, social links, evidence, caveats) are kept in the lead's notes.
+- Duplicates (same business name + city, phone, email or website) are skipped, both inside the file and against leads already in the CRM, so importing the same file twice adds nothing.
+- A review screen shows the count per country and a preview before anything is saved. After saving, **Undo this import** removes exactly that batch. One entry goes in the activity log and the other partner gets one alert, not one per lead.
+- Limits: `.xlsx`, `.csv`, `.tsv` up to 8 MB; old `.xls` must be re-saved as `.xlsx`. The Leads list has a Country filter row once more than one country is present.
+
 ## Phone alerts
 
 Real notifications on the partners' phones (web push), from the home-screen icon. Works on Android, desktop, and iPhone (iOS 16.4+, only from a site added to the home screen).

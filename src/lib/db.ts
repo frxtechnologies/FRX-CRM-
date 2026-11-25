@@ -113,6 +113,39 @@ export async function rawRemove(t: TableName, id: string) {
   emit()
 }
 
+/** Insert many rows in a few round trips (used by spreadsheet import). Ids are made here so the batch can be undone. */
+export async function rawInsertMany(t: TableName, rows: Record<string, any>[], userId?: string, onProgress?: (done: number) => void): Promise<Row[]> {
+  const out: Row[] = []
+  for (let i = 0; i < rows.length; i += 200) {
+    const chunk = rows.slice(i, i + 200).map((v) => ({ id: uid(), ...v }))
+    if (IS_DEMO) {
+      const made = chunk.map((v) => ({ created_at: now(), updated_at: now(), created_by: userId, updated_by: userId, ...v }) as Row)
+      data[t] = [...data[t], ...made]
+      writeLocal(t, data[t])
+      out.push(...made)
+    } else {
+      const { data: made, error } = await supabase!.from(t).insert(chunk.map((v) => ({ ...v, created_by: userId, updated_by: userId }))).select()
+      if (error) { if (out.length) emit(); throw Object.assign(error, { inserted: out }) }
+      data[t] = [...data[t], ...(made as Row[])]
+      out.push(...(made as Row[]))
+    }
+    emit()
+    onProgress?.(out.length)
+  }
+  return out
+}
+
+export async function rawRemoveMany(t: TableName, ids: string[]) {
+  for (let i = 0; i < ids.length; i += 100) {
+    const part = ids.slice(i, i + 100)
+    if (!IS_DEMO) { const { error } = await supabase!.from(t).delete().in('id', part); if (error) throw error }
+    const gone = new Set(part)
+    data[t] = data[t].filter((r) => !gone.has(r.id))
+    if (IS_DEMO) writeLocal(t, data[t])
+    emit()
+  }
+}
+
 export const snapshot = (t: TableName): Row[] => data[t]
 export const byId = (t: TableName, id?: string | null) => (id ? data[t].find((r) => r.id === id) : undefined)
 

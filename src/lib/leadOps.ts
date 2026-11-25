@@ -3,9 +3,7 @@ import { create, update, convertLead, getCurrentUserId, partnerName } from './se
 import { WON } from './constants'
 import { today } from './util'
 
-const digits = (s?: string) => (s || '').replace(/\D/g, '').replace(/^0+/, '').slice(-9)
-const domain = (s?: string) => (s || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].trim()
-const nameKey = (s?: string) => (s || '').toLowerCase().replace(/\b(pvt|ltd|llc|inc|co|company|limited|private|the)\b/g, '').replace(/[^a-z0-9]/g, '')
+import { digits9 as digits, domainOf as domain, nameKeyOf as nameKey } from './leadKeys'
 
 /** Duplicate detection across BOTH partners' leads: same business name, phone/WhatsApp, email or website domain. */
 export function findDuplicates(c: Partial<Row>, excludeId?: string): { lead: Row; reason: string }[] {

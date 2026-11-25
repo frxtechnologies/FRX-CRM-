@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { rawInsert, rawUpdate, rawRemove, snapshot, byId, useTable, type Row, type TableName } from './db'
+import { rawInsert, rawInsertMany, rawRemoveMany, rawUpdate, rawRemove, snapshot, byId, useTable, type Row, type TableName } from './db'
 import {
   BASE_DEFAULT, CONTACTED_STATUSES, DEFAULT_COMPANY, DEFAULT_INVOICE_SETTINGS, DEFAULT_RATES, EXPENSE_CATEGORIES,
   LEAD_STATUSES, SUB_CATEGORIES, WON,
@@ -67,6 +67,27 @@ export async function remove(table: TableName, id: string, opts: { silent?: bool
   const before = byId(table, id)
   await rawRemove(table, id)
   if (!opts.silent && before && LABEL[table]) await logActivity(`deleted ${LABEL[table]![0]} ${LABEL[table]![1](before)}`, table, id, 'delete')
+}
+
+/** Bulk-add leads from a spreadsheet: one audit-log line and one alert to the other partner, not one per lead. */
+export async function importLeads(rows: Record<string, any>[], label: string, onProgress?: (done: number) => void): Promise<Row[]> {
+  let made: Row[] = []
+  try {
+    made = await rawInsertMany('leads', rows, currentUserId, onProgress)
+  } catch (e: any) {
+    made = e?.inserted || []
+    if (made.length) await logActivity(`imported ${made.length} lead${made.length === 1 ? '' : 's'} from ${label} (stopped part-way)`, 'leads', undefined, 'import')
+    throw e
+  }
+  await logActivity(`imported ${made.length} lead${made.length === 1 ? '' : 's'} from ${label}`, 'leads', undefined, 'import')
+  const other = snapshot('profiles').find((p) => p.id !== currentUserId)
+  if (other && made.length) await notify({ title: `${made.length} new lead${made.length === 1 ? '' : 's'} imported`, body: `${partnerName(currentUserId)} imported ${label}`, link: '/leads', user_id: other.id, kind: 'lead' })
+  return made
+}
+export async function undoImportLeads(ids: string[], label: string) {
+  const live = ids.filter((id) => byId('leads', id))
+  await rawRemoveMany('leads', live)
+  await logActivity(`undid the import of ${live.length} lead${live.length === 1 ? '' : 's'} from ${label}`, 'leads', undefined, 'delete')
 }
 
 export async function notify(n: { title: string; body?: string; link?: string; user_id?: string | null; kind?: string; dedupe_key?: string }) {
